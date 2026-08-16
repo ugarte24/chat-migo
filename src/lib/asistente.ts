@@ -129,7 +129,7 @@ function extraerHora(texto: string): string | null {
   }
   const conLas = n.match(/\ba\s+las?\s+([a-z]+|\d{1,2})/);
   if (conLas) {
-    const bruto = conLas[1];
+    const bruto = conLas[1] ?? "";
     let h = /^\d+$/.test(bruto) ? Number(bruto) : (NUMEROS[bruto] ?? NaN);
     if (Number.isNaN(h)) return null;
     if (tarde && h < 12) h += 12;
@@ -170,7 +170,7 @@ function extraerFecha(texto: string): string | null {
       "noviembre",
       "diciembre",
     ];
-    const mes = meses.indexOf(numerica[2]);
+    const mes = meses.indexOf(numerica[2] ?? "");
     if (mes >= 0) {
       const d = new Date(hoy.getFullYear(), mes, Number(numerica[1]));
       if (d < hoy) d.setFullYear(d.getFullYear() + 1);
@@ -182,9 +182,9 @@ function extraerFecha(texto: string): string | null {
 
 function extraerPersona(texto: string): string | null {
   const m = texto.match(/\bcon\s+([A-ZÁÉÍÓÚÑ][a-záéíóúñ]+)/);
-  if (m) return m[1];
+  if (m?.[1]) return m[1];
   const m2 = texto.match(/\ba\s+([A-ZÁÉÍÓÚÑ][a-záéíóúñ]+)/);
-  return m2 ? m2[1] : null;
+  return m2?.[1] ?? null;
 }
 
 function extraerFrecuencia(texto: string): string | null {
