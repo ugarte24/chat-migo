@@ -6,8 +6,8 @@
 
 /*
  * Sistema de diseño — Asistente Diario
- * Tema oscuro profundo con acento verde menta (voz/WhatsApp) y ámbar (automatización).
- * Todos los colores en oklch y expuestos como tokens semánticos.
+ * Identidad propia: índigo (principal), violeta (inteligencia artificial),
+ * verde (éxito y automatización). Tema claro, moderno y profesional.
  */
 
 @theme inline {
@@ -26,6 +26,7 @@
   --color-popover-foreground: var(--popover-foreground);
   --color-primary: var(--primary);
   --color-primary-foreground: var(--primary-foreground);
+  --color-primary-dark: var(--primary-dark);
   --color-secondary: var(--secondary);
   --color-secondary-foreground: var(--secondary-foreground);
   --color-muted: var(--muted);
@@ -34,6 +35,13 @@
   --color-accent-foreground: var(--accent-foreground);
   --color-destructive: var(--destructive);
   --color-destructive-foreground: var(--destructive-foreground);
+  --color-success: var(--success);
+  --color-success-foreground: var(--success-foreground);
+  --color-warning: var(--warning);
+  --color-warning-foreground: var(--warning-foreground);
+  --color-ai: var(--ai);
+  --color-ai-foreground: var(--ai-foreground);
+  --color-ai-soft: var(--ai-soft);
   --color-border: var(--border);
   --color-input: var(--input);
   --color-ring: var(--ring);
@@ -62,55 +70,64 @@
 }
 
 :root {
-  --radius: 0.9rem;
-  --background: oklch(0.19 0.024 175);
-  --foreground: oklch(0.965 0.012 160);
-  --card: oklch(0.235 0.026 176);
-  --card-foreground: oklch(0.965 0.012 160);
-  --surface: oklch(0.275 0.028 177);
-  --surface-foreground: oklch(0.965 0.012 160);
-  --popover: oklch(0.235 0.026 176);
-  --popover-foreground: oklch(0.965 0.012 160);
-  --primary: oklch(0.82 0.16 160);
-  --primary-foreground: oklch(0.19 0.05 165);
-  --secondary: oklch(0.3 0.03 177);
-  --secondary-foreground: oklch(0.95 0.012 160);
-  --muted: oklch(0.28 0.026 177);
-  --muted-foreground: oklch(0.72 0.02 170);
-  --accent: oklch(0.83 0.15 82);
-  --accent-foreground: oklch(0.24 0.05 80);
-  --destructive: oklch(0.63 0.2 24);
-  --destructive-foreground: oklch(0.98 0.01 90);
-  --border: oklch(0.34 0.026 177);
-  --input: oklch(0.32 0.026 177);
-  --ring: oklch(0.82 0.16 160);
-  --bubble-user: oklch(0.44 0.09 163);
-  --bubble-user-foreground: oklch(0.97 0.012 160);
-  --bubble-bot: oklch(0.28 0.026 177);
-  --bubble-bot-foreground: oklch(0.95 0.012 160);
-  --chart-1: oklch(0.82 0.16 160);
-  --chart-2: oklch(0.83 0.15 82);
-  --chart-3: oklch(0.7 0.12 220);
-  --chart-4: oklch(0.72 0.16 330);
-  --chart-5: oklch(0.75 0.14 30);
-  --sidebar: oklch(0.22 0.025 176);
-  --sidebar-foreground: oklch(0.95 0.012 160);
-  --sidebar-primary: oklch(0.82 0.16 160);
-  --sidebar-primary-foreground: oklch(0.19 0.05 165);
-  --sidebar-accent: oklch(0.28 0.026 177);
-  --sidebar-accent-foreground: oklch(0.95 0.012 160);
-  --sidebar-border: oklch(0.34 0.026 177);
-  --sidebar-ring: oklch(0.82 0.16 160);
+  --radius: 0.85rem;
+  --background: oklch(0.984 0.003 247.9);
+  --foreground: oklch(0.208 0.04 265.8);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.208 0.04 265.8);
+  --surface: oklch(0.968 0.007 247.9);
+  --surface-foreground: oklch(0.208 0.04 265.8);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.208 0.04 265.8);
+  --primary: oklch(0.511 0.23 277);
+  --primary-foreground: oklch(0.99 0.005 270);
+  --primary-dark: oklch(0.398 0.177 277.4);
+  --secondary: oklch(0.962 0.018 272.3);
+  --secondary-foreground: oklch(0.398 0.177 277.4);
+  --muted: oklch(0.968 0.007 247.9);
+  --muted-foreground: oklch(0.554 0.041 257.4);
+  --accent: oklch(0.962 0.018 272.3);
+  --accent-foreground: oklch(0.398 0.177 277.4);
+  --destructive: oklch(0.637 0.208 25.3);
+  --destructive-foreground: oklch(0.99 0.005 90);
+  --success: oklch(0.696 0.149 162.5);
+  --success-foreground: oklch(0.99 0.005 160);
+  --warning: oklch(0.769 0.165 70.1);
+  --warning-foreground: oklch(0.24 0.05 70);
+  --ai: oklch(0.541 0.247 293);
+  --ai-foreground: oklch(0.99 0.005 290);
+  --ai-soft: oklch(0.965 0.02 293);
+  --border: oklch(0.929 0.013 255.5);
+  --input: oklch(0.929 0.013 255.5);
+  --ring: oklch(0.511 0.23 277);
+  --bubble-user: oklch(0.511 0.23 277);
+  --bubble-user-foreground: oklch(0.99 0.005 270);
+  --bubble-bot: oklch(1 0 0);
+  --bubble-bot-foreground: oklch(0.208 0.04 265.8);
+  --chart-1: oklch(0.511 0.23 277);
+  --chart-2: oklch(0.541 0.247 293);
+  --chart-3: oklch(0.696 0.149 162.5);
+  --chart-4: oklch(0.769 0.165 70.1);
+  --chart-5: oklch(0.637 0.208 25.3);
+  --sidebar: oklch(1 0 0);
+  --sidebar-foreground: oklch(0.208 0.04 265.8);
+  --sidebar-primary: oklch(0.511 0.23 277);
+  --sidebar-primary-foreground: oklch(0.99 0.005 270);
+  --sidebar-accent: oklch(0.962 0.018 272.3);
+  --sidebar-accent-foreground: oklch(0.398 0.177 277.4);
+  --sidebar-border: oklch(0.929 0.013 255.5);
+  --sidebar-ring: oklch(0.511 0.23 277);
 
   --gradient-hero: radial-gradient(
-      120% 100% at 15% 0%,
-      oklch(0.36 0.07 168 / 0.55) 0%,
+      110% 90% at 12% 0%,
+      oklch(0.511 0.23 277 / 0.14) 0%,
       transparent 60%
     ),
-    radial-gradient(90% 80% at 90% 10%, oklch(0.45 0.1 88 / 0.28) 0%, transparent 65%);
-  --gradient-accent: linear-gradient(135deg, oklch(0.82 0.16 160), oklch(0.83 0.15 82));
-  --shadow-soft: 0 1px 0 oklch(1 0 0 / 0.05) inset, 0 18px 45px -20px oklch(0 0 0 / 0.75);
-  --shadow-glow: 0 0 0 1px oklch(0.82 0.16 160 / 0.25), 0 22px 60px -28px oklch(0.82 0.16 160 / 0.55);
+    radial-gradient(90% 80% at 92% 5%, oklch(0.541 0.247 293 / 0.12) 0%, transparent 65%);
+  --gradient-accent: linear-gradient(135deg, oklch(0.511 0.23 277), oklch(0.541 0.247 293));
+  --gradient-ai: linear-gradient(135deg, oklch(0.541 0.247 293 / 0.12), oklch(0.511 0.23 277 / 0.08));
+  --shadow-soft: 0 1px 2px oklch(0.208 0.04 265.8 / 0.04), 0 12px 30px -18px oklch(0.208 0.04 265.8 / 0.25);
+  --shadow-glow: 0 0 0 1px oklch(0.511 0.23 277 / 0.12), 0 20px 45px -26px oklch(0.511 0.23 277 / 0.45);
 }
 
 .dark {
@@ -146,6 +163,10 @@
   background-image: var(--gradient-accent);
 }
 
+@utility bg-gradient-ai {
+  background-image: var(--gradient-ai);
+}
+
 @utility text-gradient-accent {
   background-image: var(--gradient-accent);
   background-clip: text;
@@ -166,4 +187,19 @@
   border: 1px solid var(--color-border);
   border-radius: var(--radius-xl);
   box-shadow: var(--shadow-soft);
+}
+
+@utility animate-rise {
+  animation: rise 0.35s ease-out both;
+}
+
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
 }
