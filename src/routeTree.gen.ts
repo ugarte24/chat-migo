@@ -10,43 +10,236 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
-import { Route as PanelRouteImport } from './routes/panel'
+import { Route as AppRouteRouteImport } from './routes/_app/route'
+import { Route as AdminRouteRouteImport } from './routes/admin/route'
+import { Route as AppAutomatizacionesRouteImport } from './routes/_app/automatizaciones'
+import { Route as AppChatRouteImport } from './routes/_app/chat'
+import { Route as AppConfiguracionRouteImport } from './routes/_app/configuracion'
+import { Route as AppEventosRouteImport } from './routes/_app/eventos'
+import { Route as AppHistorialRouteImport } from './routes/_app/historial'
+import { Route as AppMemoriaRouteImport } from './routes/_app/memoria'
+import { Route as AppPanelRouteImport } from './routes/_app/panel'
+import { Route as AppRecordatoriosRouteImport } from './routes/_app/recordatorios'
+import { Route as AppTareasRouteImport } from './routes/_app/tareas'
+import { Route as AdminIndexRouteImport } from './routes/admin/index'
+import { Route as AdminActividadRouteImport } from './routes/admin/actividad'
+import { Route as AdminAutomatizacionesRouteImport } from './routes/admin/automatizaciones'
+import { Route as AdminConfiguracionRouteImport } from './routes/admin/configuracion'
+import { Route as AdminIntegracionesRouteImport } from './routes/admin/integraciones'
+import { Route as AdminUsuariosRouteImport } from './routes/admin/usuarios'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
-const PanelRoute = PanelRouteImport.update({
+const AppRouteRoute = AppRouteRouteImport.update({
+  id: '/_app',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AdminRouteRoute = AdminRouteRouteImport.update({
+  id: '/admin',
+  path: '/admin',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AppAutomatizacionesRoute = AppAutomatizacionesRouteImport.update({
+  id: '/automatizaciones',
+  path: '/automatizaciones',
+  getParentRoute: () => AppRouteRoute,
+} as any)
+const AppChatRoute = AppChatRouteImport.update({
+  id: '/chat',
+  path: '/chat',
+  getParentRoute: () => AppRouteRoute,
+} as any)
+const AppConfiguracionRoute = AppConfiguracionRouteImport.update({
+  id: '/configuracion',
+  path: '/configuracion',
+  getParentRoute: () => AppRouteRoute,
+} as any)
+const AppEventosRoute = AppEventosRouteImport.update({
+  id: '/eventos',
+  path: '/eventos',
+  getParentRoute: () => AppRouteRoute,
+} as any)
+const AppHistorialRoute = AppHistorialRouteImport.update({
+  id: '/historial',
+  path: '/historial',
+  getParentRoute: () => AppRouteRoute,
+} as any)
+const AppMemoriaRoute = AppMemoriaRouteImport.update({
+  id: '/memoria',
+  path: '/memoria',
+  getParentRoute: () => AppRouteRoute,
+} as any)
+const AppPanelRoute = AppPanelRouteImport.update({
   id: '/panel',
   path: '/panel',
-  getParentRoute: () => rootRouteImport,
+  getParentRoute: () => AppRouteRoute,
+} as any)
+const AppRecordatoriosRoute = AppRecordatoriosRouteImport.update({
+  id: '/recordatorios',
+  path: '/recordatorios',
+  getParentRoute: () => AppRouteRoute,
+} as any)
+const AppTareasRoute = AppTareasRouteImport.update({
+  id: '/tareas',
+  path: '/tareas',
+  getParentRoute: () => AppRouteRoute,
+} as any)
+const AdminIndexRoute = AdminIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => AdminRouteRoute,
+} as any)
+const AdminActividadRoute = AdminActividadRouteImport.update({
+  id: '/actividad',
+  path: '/actividad',
+  getParentRoute: () => AdminRouteRoute,
+} as any)
+const AdminAutomatizacionesRoute = AdminAutomatizacionesRouteImport.update({
+  id: '/automatizaciones',
+  path: '/automatizaciones',
+  getParentRoute: () => AdminRouteRoute,
+} as any)
+const AdminConfiguracionRoute = AdminConfiguracionRouteImport.update({
+  id: '/configuracion',
+  path: '/configuracion',
+  getParentRoute: () => AdminRouteRoute,
+} as any)
+const AdminIntegracionesRoute = AdminIntegracionesRouteImport.update({
+  id: '/integraciones',
+  path: '/integraciones',
+  getParentRoute: () => AdminRouteRoute,
+} as any)
+const AdminUsuariosRoute = AdminUsuariosRouteImport.update({
+  id: '/usuarios',
+  path: '/usuarios',
+  getParentRoute: () => AdminRouteRoute,
 } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
-  '/panel': typeof PanelRoute
+  '/admin': typeof AdminRouteRouteWithChildren
+  '/automatizaciones': typeof AppAutomatizacionesRoute
+  '/chat': typeof AppChatRoute
+  '/configuracion': typeof AppConfiguracionRoute
+  '/eventos': typeof AppEventosRoute
+  '/historial': typeof AppHistorialRoute
+  '/memoria': typeof AppMemoriaRoute
+  '/panel': typeof AppPanelRoute
+  '/recordatorios': typeof AppRecordatoriosRoute
+  '/tareas': typeof AppTareasRoute
+  '/admin/actividad': typeof AdminActividadRoute
+  '/admin/automatizaciones': typeof AdminAutomatizacionesRoute
+  '/admin/configuracion': typeof AdminConfiguracionRoute
+  '/admin/integraciones': typeof AdminIntegracionesRoute
+  '/admin/usuarios': typeof AdminUsuariosRoute
+  '/admin/': typeof AdminIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
-  '/panel': typeof PanelRoute
+  '/automatizaciones': typeof AppAutomatizacionesRoute
+  '/chat': typeof AppChatRoute
+  '/configuracion': typeof AppConfiguracionRoute
+  '/eventos': typeof AppEventosRoute
+  '/historial': typeof AppHistorialRoute
+  '/memoria': typeof AppMemoriaRoute
+  '/panel': typeof AppPanelRoute
+  '/recordatorios': typeof AppRecordatoriosRoute
+  '/tareas': typeof AppTareasRoute
+  '/admin/actividad': typeof AdminActividadRoute
+  '/admin/automatizaciones': typeof AdminAutomatizacionesRoute
+  '/admin/configuracion': typeof AdminConfiguracionRoute
+  '/admin/integraciones': typeof AdminIntegracionesRoute
+  '/admin/usuarios': typeof AdminUsuariosRoute
+  '/admin': typeof AdminIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
-  '/panel': typeof PanelRoute
+  '/_app': typeof AppRouteRouteWithChildren
+  '/admin': typeof AdminRouteRouteWithChildren
+  '/_app/automatizaciones': typeof AppAutomatizacionesRoute
+  '/_app/chat': typeof AppChatRoute
+  '/_app/configuracion': typeof AppConfiguracionRoute
+  '/_app/eventos': typeof AppEventosRoute
+  '/_app/historial': typeof AppHistorialRoute
+  '/_app/memoria': typeof AppMemoriaRoute
+  '/_app/panel': typeof AppPanelRoute
+  '/_app/recordatorios': typeof AppRecordatoriosRoute
+  '/_app/tareas': typeof AppTareasRoute
+  '/admin/actividad': typeof AdminActividadRoute
+  '/admin/automatizaciones': typeof AdminAutomatizacionesRoute
+  '/admin/configuracion': typeof AdminConfiguracionRoute
+  '/admin/integraciones': typeof AdminIntegracionesRoute
+  '/admin/usuarios': typeof AdminUsuariosRoute
+  '/admin/': typeof AdminIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/panel'
+  fullPaths:
+    | '/'
+    | '/admin'
+    | '/automatizaciones'
+    | '/chat'
+    | '/configuracion'
+    | '/eventos'
+    | '/historial'
+    | '/memoria'
+    | '/panel'
+    | '/recordatorios'
+    | '/tareas'
+    | '/admin/actividad'
+    | '/admin/automatizaciones'
+    | '/admin/configuracion'
+    | '/admin/integraciones'
+    | '/admin/usuarios'
+    | '/admin/'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/panel'
-  id: '__root__' | '/' | '/panel'
+  to:
+    | '/'
+    | '/automatizaciones'
+    | '/chat'
+    | '/configuracion'
+    | '/eventos'
+    | '/historial'
+    | '/memoria'
+    | '/panel'
+    | '/recordatorios'
+    | '/tareas'
+    | '/admin/actividad'
+    | '/admin/automatizaciones'
+    | '/admin/configuracion'
+    | '/admin/integraciones'
+    | '/admin/usuarios'
+    | '/admin'
+  id:
+    | '__root__'
+    | '/'
+    | '/_app'
+    | '/admin'
+    | '/_app/automatizaciones'
+    | '/_app/chat'
+    | '/_app/configuracion'
+    | '/_app/eventos'
+    | '/_app/historial'
+    | '/_app/memoria'
+    | '/_app/panel'
+    | '/_app/recordatorios'
+    | '/_app/tareas'
+    | '/admin/actividad'
+    | '/admin/automatizaciones'
+    | '/admin/configuracion'
+    | '/admin/integraciones'
+    | '/admin/usuarios'
+    | '/admin/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
-  PanelRoute: typeof PanelRoute
+  AppRouteRoute: typeof AppRouteRouteWithChildren
+  AdminRouteRoute: typeof AdminRouteRouteWithChildren
 }
 
 declare module '@tanstack/react-router' {
@@ -58,19 +251,182 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/panel': {
-      id: '/panel'
+    '/_app': {
+      id: '/_app'
+      path: ''
+      fullPath: '/'
+      preLoaderRoute: typeof AppRouteRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin': {
+      id: '/admin'
+      path: '/admin'
+      fullPath: '/admin'
+      preLoaderRoute: typeof AdminRouteRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/_app/automatizaciones': {
+      id: '/_app/automatizaciones'
+      path: '/automatizaciones'
+      fullPath: '/automatizaciones'
+      preLoaderRoute: typeof AppAutomatizacionesRouteImport
+      parentRoute: typeof AppRouteRoute
+    }
+    '/_app/chat': {
+      id: '/_app/chat'
+      path: '/chat'
+      fullPath: '/chat'
+      preLoaderRoute: typeof AppChatRouteImport
+      parentRoute: typeof AppRouteRoute
+    }
+    '/_app/configuracion': {
+      id: '/_app/configuracion'
+      path: '/configuracion'
+      fullPath: '/configuracion'
+      preLoaderRoute: typeof AppConfiguracionRouteImport
+      parentRoute: typeof AppRouteRoute
+    }
+    '/_app/eventos': {
+      id: '/_app/eventos'
+      path: '/eventos'
+      fullPath: '/eventos'
+      preLoaderRoute: typeof AppEventosRouteImport
+      parentRoute: typeof AppRouteRoute
+    }
+    '/_app/historial': {
+      id: '/_app/historial'
+      path: '/historial'
+      fullPath: '/historial'
+      preLoaderRoute: typeof AppHistorialRouteImport
+      parentRoute: typeof AppRouteRoute
+    }
+    '/_app/memoria': {
+      id: '/_app/memoria'
+      path: '/memoria'
+      fullPath: '/memoria'
+      preLoaderRoute: typeof AppMemoriaRouteImport
+      parentRoute: typeof AppRouteRoute
+    }
+    '/_app/panel': {
+      id: '/_app/panel'
       path: '/panel'
       fullPath: '/panel'
-      preLoaderRoute: typeof PanelRouteImport
-      parentRoute: typeof rootRouteImport
+      preLoaderRoute: typeof AppPanelRouteImport
+      parentRoute: typeof AppRouteRoute
+    }
+    '/_app/recordatorios': {
+      id: '/_app/recordatorios'
+      path: '/recordatorios'
+      fullPath: '/recordatorios'
+      preLoaderRoute: typeof AppRecordatoriosRouteImport
+      parentRoute: typeof AppRouteRoute
+    }
+    '/_app/tareas': {
+      id: '/_app/tareas'
+      path: '/tareas'
+      fullPath: '/tareas'
+      preLoaderRoute: typeof AppTareasRouteImport
+      parentRoute: typeof AppRouteRoute
+    }
+    '/admin/': {
+      id: '/admin/'
+      path: '/'
+      fullPath: '/admin/'
+      preLoaderRoute: typeof AdminIndexRouteImport
+      parentRoute: typeof AdminRouteRoute
+    }
+    '/admin/actividad': {
+      id: '/admin/actividad'
+      path: '/actividad'
+      fullPath: '/admin/actividad'
+      preLoaderRoute: typeof AdminActividadRouteImport
+      parentRoute: typeof AdminRouteRoute
+    }
+    '/admin/automatizaciones': {
+      id: '/admin/automatizaciones'
+      path: '/automatizaciones'
+      fullPath: '/admin/automatizaciones'
+      preLoaderRoute: typeof AdminAutomatizacionesRouteImport
+      parentRoute: typeof AdminRouteRoute
+    }
+    '/admin/configuracion': {
+      id: '/admin/configuracion'
+      path: '/configuracion'
+      fullPath: '/admin/configuracion'
+      preLoaderRoute: typeof AdminConfiguracionRouteImport
+      parentRoute: typeof AdminRouteRoute
+    }
+    '/admin/integraciones': {
+      id: '/admin/integraciones'
+      path: '/integraciones'
+      fullPath: '/admin/integraciones'
+      preLoaderRoute: typeof AdminIntegracionesRouteImport
+      parentRoute: typeof AdminRouteRoute
+    }
+    '/admin/usuarios': {
+      id: '/admin/usuarios'
+      path: '/usuarios'
+      fullPath: '/admin/usuarios'
+      preLoaderRoute: typeof AdminUsuariosRouteImport
+      parentRoute: typeof AdminRouteRoute
     }
   }
 }
 
+interface AppRouteRouteChildren {
+  AppAutomatizacionesRoute: typeof AppAutomatizacionesRoute
+  AppChatRoute: typeof AppChatRoute
+  AppConfiguracionRoute: typeof AppConfiguracionRoute
+  AppEventosRoute: typeof AppEventosRoute
+  AppHistorialRoute: typeof AppHistorialRoute
+  AppMemoriaRoute: typeof AppMemoriaRoute
+  AppPanelRoute: typeof AppPanelRoute
+  AppRecordatoriosRoute: typeof AppRecordatoriosRoute
+  AppTareasRoute: typeof AppTareasRoute
+}
+
+const AppRouteRouteChildren: AppRouteRouteChildren = {
+  AppAutomatizacionesRoute: AppAutomatizacionesRoute,
+  AppChatRoute: AppChatRoute,
+  AppConfiguracionRoute: AppConfiguracionRoute,
+  AppEventosRoute: AppEventosRoute,
+  AppHistorialRoute: AppHistorialRoute,
+  AppMemoriaRoute: AppMemoriaRoute,
+  AppPanelRoute: AppPanelRoute,
+  AppRecordatoriosRoute: AppRecordatoriosRoute,
+  AppTareasRoute: AppTareasRoute,
+}
+
+const AppRouteRouteWithChildren = AppRouteRoute._addFileChildren(
+  AppRouteRouteChildren,
+)
+
+interface AdminRouteRouteChildren {
+  AdminActividadRoute: typeof AdminActividadRoute
+  AdminAutomatizacionesRoute: typeof AdminAutomatizacionesRoute
+  AdminConfiguracionRoute: typeof AdminConfiguracionRoute
+  AdminIntegracionesRoute: typeof AdminIntegracionesRoute
+  AdminUsuariosRoute: typeof AdminUsuariosRoute
+  AdminIndexRoute: typeof AdminIndexRoute
+}
+
+const AdminRouteRouteChildren: AdminRouteRouteChildren = {
+  AdminActividadRoute: AdminActividadRoute,
+  AdminAutomatizacionesRoute: AdminAutomatizacionesRoute,
+  AdminConfiguracionRoute: AdminConfiguracionRoute,
+  AdminIntegracionesRoute: AdminIntegracionesRoute,
+  AdminUsuariosRoute: AdminUsuariosRoute,
+  AdminIndexRoute: AdminIndexRoute,
+}
+
+const AdminRouteRouteWithChildren = AdminRouteRoute._addFileChildren(
+  AdminRouteRouteChildren,
+)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
-  PanelRoute: PanelRoute,
+  AppRouteRoute: AppRouteRouteWithChildren,
+  AdminRouteRoute: AdminRouteRouteWithChildren,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

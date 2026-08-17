@@ -20,6 +20,18 @@ dist-ssr
 .wrangler/
 .dev.vars
 
+# Vercel
+.vercel
+
+# Supabase CLI
+supabase/.temp
+supabase/.branches
+
+# Entorno
+.env
+.env.*
+!.env.example
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json

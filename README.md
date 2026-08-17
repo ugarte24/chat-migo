@@ -1,4 +1,4 @@
-# Tu Asistente Diario
+# Dilo
 
 PRD — PRODUCT REQUIREMENTS DOCUMENT
 
@@ -870,3 +870,17 @@ cd <repository-name>
 npm i
 npm run dev
 ```
+
+Copia `.env.example` a `.env.local` y completa las variables.
+
+## Despliegue en Vercel
+
+1. Sube el repo a GitHub e impórtalo en [vercel.com/new](https://vercel.com/new).
+2. El framework debe detectarse como **TanStack Start**. Node 20.
+3. En **Environment Variables** agrega, para Production, Preview y Development:
+   - `VITE_PUBLIC_APP_URL`
+   - `VITE_SUPABASE_URL`
+   - `VITE_SUPABASE_ANON_KEY`
+4. Despliega. Luego en Supabase → Authentication → URL Configuration usa esa URL de producción (y `https://*.vercel.app/**` para previews).
+
+No subas la *service role* de Supabase como variable `VITE_*`.

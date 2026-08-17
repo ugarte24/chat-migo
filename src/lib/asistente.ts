@@ -107,9 +107,10 @@ const normalizar = (t: string) =>
     .replace(/[\u0300-\u036f]/g, "");
 
 export const formatoFecha = (d: Date) =>
-  d.toLocaleDateString("es-ES", { weekday: "long", day: "numeric", month: "long" });
+  d.toLocaleDateString("es", { day: "numeric", month: "long", year: "numeric" });
 
-const fechaISO = (d: Date) => d.toISOString().slice(0, 10);
+const fechaISO = (d: Date) =>
+  `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 
 function proximoDia(indice: number, base: Date) {
   const d = new Date(base);
@@ -122,9 +123,11 @@ function extraerHora(texto: string): string | null {
   const n = normalizar(texto);
   const digital = n.match(/(\d{1,2})[:.](\d{2})/);
   const tarde = /\b(tarde|noche)\b/.test(n);
+  const manana = /\bde la manana\b/.test(n);
   if (digital) {
     let h = Number(digital[1]);
     if (tarde && h < 12) h += 12;
+    else if (!manana && !tarde && h >= 1 && h <= 6) h += 12;
     return `${String(h).padStart(2, "0")}:${digital[2]}`;
   }
   const conLas = n.match(/\ba\s+las?\s+([a-z]+|\d{1,2})/);
@@ -133,6 +136,7 @@ function extraerHora(texto: string): string | null {
     let h = /^\d+$/.test(bruto) ? Number(bruto) : (NUMEROS[bruto] ?? NaN);
     if (Number.isNaN(h)) return null;
     if (tarde && h < 12) h += 12;
+    else if (!manana && !tarde && h >= 1 && h <= 6) h += 12;
     return `${String(h).padStart(2, "0")}:00`;
   }
   return null;
@@ -229,7 +233,11 @@ export function interpretar(texto: string): Interpretacion {
       : "media";
 
   let intencion: Intencion = "desconocida";
-  if (/\bque tengo\b|\bque hay\b|\bmis tareas\b|\bmi agenda\b|\bconsulta(r)?\b|\bmuestrame\b|\bque recuerdas\b/.test(n)) {
+  if (
+    /\bque tengo\b|\bque hay\b|\bmis tareas\b|\bmi agenda\b|\bconsulta(r)?\b|\bmuestrame\b|\bque recuerdas\b|\bque tareas\b|\btengo para hoy\b|\bque tengo pendiente\b/.test(
+      n,
+    )
+  ) {
     intencion = "consulta";
   } else if (frecuencia) {
     intencion = "automatizacion";
