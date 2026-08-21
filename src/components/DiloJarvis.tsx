@@ -29,7 +29,7 @@ export function Dilo() {
   const [transcribiendo, setTranscribiendo] = useState(false);
   const [hablando, setHablando] = useState(false);
   const [aviso, setAviso] = useState<string | null>(null);
-  const detenerRef = useRef<(() => Promise<Blob>) | null>(null);
+  const detenerRef = useRef<(() => Promise<{ blob: Blob; dicho: string }>) | null>(null);
   const cortandoRef = useRef(false);
   const hayMic = microfonoDisponible();
 
@@ -85,10 +85,10 @@ export function Dilo() {
     setTranscribiendo(true);
     setAviso(null);
     try {
-      const blob = await detener();
-      const transcrito = await transcribirAudio(blob);
+      const { blob, dicho } = await detener();
+      const transcrito = dicho || (await transcribirAudio(blob));
       if (transcrito) enviar(transcrito, "voz");
-      else setAviso("No te entendí. Pulsa el orbe y habla más cerca, o escribe abajo.");
+      else setAviso("No te entendí. Pulsa el orbe, espera el sonido y habla más cerca, o escribe abajo.");
     } catch {
       setAviso("No pude usar el micrófono. Permite el acceso o escribe abajo.");
     } finally {

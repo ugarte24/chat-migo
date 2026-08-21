@@ -100,8 +100,54 @@ function mimeGrabacion() {
   return tipos.find((t) => typeof MediaRecorder !== "undefined" && MediaRecorder.isTypeSupported(t)) ?? "";
 }
 
+export interface GrabacionVoz {
+  detener: () => Promise<{ blob: Blob; dicho: string }>;
+}
+
+function escucharEnVivo(): { texto: () => string; parar: () => void } {
+  const Ctor = ctorReconocimiento();
+  if (!Ctor) return { texto: () => "", parar: () => undefined };
+
+  const rec = new Ctor();
+  rec.lang = "es-ES";
+  rec.interimResults = true;
+  rec.maxAlternatives = 1;
+  rec.continuous = true;
+  let dicho = "";
+  let interino = "";
+  rec.onresult = (evento) => {
+    let finales = "";
+    let provisional = "";
+    for (let i = evento.resultIndex ?? 0; i < evento.results.length; i++) {
+      const pieza = evento.results[i];
+      const t = pieza?.[0]?.transcript?.trim() ?? "";
+      if (!t) continue;
+      if (pieza?.isFinal) finales = finales ? `${finales} ${t}` : t;
+      else provisional = t;
+    }
+    if (finales) dicho = dicho ? `${dicho} ${finales}` : finales;
+    interino = provisional;
+  };
+  rec.onerror = () => undefined;
+  try {
+    rec.start();
+  } catch {
+    return { texto: () => "", parar: () => undefined };
+  }
+  return {
+    texto: () => (dicho || interino).trim(),
+    parar: () => {
+      try {
+        rec.stop();
+      } catch {
+        /* ya cerrado */
+      }
+    },
+  };
+}
+
 /** Graba hasta que llamas a detener(), o hasta un silencio tras oírte. */
-export async function iniciarGrabacion(alCortar?: () => void): Promise<{ detener: () => Promise<Blob> }> {
+export async function iniciarGrabacion(alCortar?: () => void): Promise<GrabacionVoz> {
   const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
   const mime = mimeGrabacion();
   const rec = mime ? new MediaRecorder(stream, { mimeType: mime }) : new MediaRecorder(stream);
@@ -109,7 +155,8 @@ export async function iniciarGrabacion(alCortar?: () => void): Promise<{ detener
   rec.ondataavailable = (e) => {
     if (e.data.size > 0) trozos.push(e.data);
   };
-  rec.start(250);
+  rec.start();
+  const vivo = escucharEnVivo();
 
   const AudioCtx = window.AudioContext || (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
   let audioCtx: AudioContext | null = null;
@@ -135,17 +182,17 @@ export async function iniciarGrabacion(alCortar?: () => void): Promise<{ detener
         suma += v * v;
       }
       const rms = Math.sqrt(suma / datos.length);
-      if (rms > 0.04) {
+      if (rms > 0.025) {
         huboVoz = true;
         ultimoSonido = Date.now();
       }
       const ahora = Date.now();
-      if (huboVoz && ahora - ultimoSonido > 1100 && ahora - inicio > 700) {
+      if (huboVoz && ahora - ultimoSonido > 1600 && ahora - inicio > 1200) {
         cerrado = true;
         alCortar?.();
         return;
       }
-      if (!huboVoz && ahora - inicio > 14000) {
+      if (!huboVoz && ahora - inicio > 12000) {
         cerrado = true;
         alCortar?.();
         return;
@@ -155,36 +202,42 @@ export async function iniciarGrabacion(alCortar?: () => void): Promise<{ detener
     requestAnimationFrame(tick);
   }
 
+  const blobDeTrozo = () => new Blob(trozos, { type: (rec.mimeType || "audio/webm").split(";")[0] });
+
   return {
     detener: () =>
       new Promise((resolve, reject) => {
         cerrado = true;
+        vivo.parar();
         void audioCtx?.close().catch(() => undefined);
+        const listo = (blob: Blob) => {
+          resolve({ blob, dicho: vivo.texto() });
+        };
         const tope = window.setTimeout(() => {
           stream.getTracks().forEach((t) => t.stop());
-          if (trozos.length === 0) {
+          if (trozos.length === 0 && !vivo.texto()) {
             reject(new Error("No se grabó audio."));
             return;
           }
-          resolve(new Blob(trozos, { type: rec.mimeType || "audio/webm" }));
+          listo(blobDeTrozo());
         }, 2_000);
         rec.onstop = () => {
           window.clearTimeout(tope);
           stream.getTracks().forEach((t) => t.stop());
-          if (trozos.length === 0) {
+          if (trozos.length === 0 && !vivo.texto()) {
             reject(new Error("No se grabó audio."));
             return;
           }
-          resolve(new Blob(trozos, { type: rec.mimeType || "audio/webm" }));
+          listo(blobDeTrozo());
         };
         if (rec.state === "inactive") {
           window.clearTimeout(tope);
           stream.getTracks().forEach((t) => t.stop());
-          if (trozos.length === 0) {
+          if (trozos.length === 0 && !vivo.texto()) {
             reject(new Error("La grabación ya había terminado."));
             return;
           }
-          resolve(new Blob(trozos, { type: rec.mimeType || "audio/webm" }));
+          listo(blobDeTrozo());
           return;
         }
         rec.stop();
@@ -259,6 +312,7 @@ export function iaVozEtiqueta() {
 
 interface ResultadoVoz {
   isFinal?: boolean;
+  length?: number;
   0?: { transcript?: string };
 }
 

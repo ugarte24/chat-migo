@@ -60,26 +60,46 @@ export async function interpretarConIa(texto: string): Promise<Interpretacion> {
   }
 }
 
+function archivoWhisper(audio: ArrayBuffer, mime: string) {
+  const tipo = (mime.split(";")[0] ?? "audio/webm").trim().toLowerCase();
+  if (tipo.includes("mp4") || tipo.includes("m4a")) {
+    return { blob: new Blob([audio], { type: "audio/mp4" }), nombre: "nota.m4a" };
+  }
+  if (tipo.includes("mpeg") || tipo.includes("mp3")) {
+    return { blob: new Blob([audio], { type: "audio/mpeg" }), nombre: "nota.mp3" };
+  }
+  if (tipo.includes("ogg")) {
+    return { blob: new Blob([audio], { type: "audio/ogg" }), nombre: "nota.ogg" };
+  }
+  return { blob: new Blob([audio], { type: "audio/webm" }), nombre: "nota.webm" };
+}
+
 export async function transcribirWhisper(audio: ArrayBuffer, mime = "audio/webm"): Promise<string | null> {
   const clave = claveOpenAi();
   if (!clave) return null;
-  const ext = mime.includes("mp4") || mime.includes("m4a") ? "m4a" : mime.includes("mpeg") ? "mp3" : "webm";
-  const archivo = new File([audio], `nota.${ext}`, { type: mime || "audio/webm" });
+  if (audio.byteLength < 1500) return null;
+  const { blob, nombre } = archivoWhisper(audio, mime);
   const cuerpo = new FormData();
-  cuerpo.append("file", archivo);
+  cuerpo.append("file", blob, nombre);
   cuerpo.append("model", "whisper-1");
   cuerpo.append("language", "es");
+  cuerpo.append("response_format", "json");
   try {
     const respuesta = await fetch("https://api.openai.com/v1/audio/transcriptions", {
       method: "POST",
       headers: { Authorization: `Bearer ${clave}` },
-      signal: AbortSignal.timeout(14_000),
+      signal: AbortSignal.timeout(12_000),
       body: cuerpo,
     });
-    if (!respuesta.ok) return null;
+    if (!respuesta.ok) {
+      const detalle = await respuesta.text().catch(() => "");
+      console.error("whisper", respuesta.status, detalle.slice(0, 240));
+      return null;
+    }
     const json = (await respuesta.json()) as { text?: string };
     return json.text?.trim() || null;
-  } catch {
+  } catch (error) {
+    console.error("whisper", error instanceof Error ? error.message : "error");
     return null;
   }
 }
