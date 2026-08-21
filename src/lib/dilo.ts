@@ -59,7 +59,12 @@ const HERRAMIENTAS = [
     function: {
       name: "consultar_agenda",
       description: "Consulta tareas, recordatorios, eventos, memoria y automatizaciones del usuario.",
-      parameters: { type: "object", properties: {}, additionalProperties: false },
+      parameters: {
+        type: "object",
+        properties: {
+          motivo: { type: "string", description: "Qué quiere saber el usuario" },
+        },
+      },
     },
   },
   {
@@ -196,6 +201,60 @@ const HERRAMIENTAS = [
     },
   },
 ] as const;
+
+function resumirAgenda(ctx: ContextoDilo) {
+  const pendientes = ctx.tareas.filter((t) => t.estado !== "completada" && t.estado !== "completado");
+  const recs = ctx.recordatorios.filter((r) => r.estado === "pendiente");
+  const eventos = ctx.eventos.filter((e) => e.fecha >= ctx.hoy);
+  const partes = [
+    pendientes.length
+      ? `Tienes ${pendientes.length} tarea${pendientes.length === 1 ? "" : "s"}: ${pendientes
+          .slice(0, 4)
+          .map((t) => t.titulo)
+          .join(", ")}.`
+      : "No tienes tareas pendientes.",
+    recs.length
+      ? `Recordatorios: ${recs
+          .slice(0, 3)
+          .map((r) => `${r.actividad} a las ${r.hora}`)
+          .join(", ")}.`
+      : "",
+    eventos.length
+      ? `Eventos: ${eventos
+          .slice(0, 3)
+          .map((e) => e.titulo)
+          .join(", ")}.`
+      : "",
+  ].filter(Boolean);
+  return partes.join(" ");
+}
+
+function confirmarAcciones(acciones: AccionDilo[], ctx: ContextoDilo, consultoAgenda: boolean) {
+  if (consultoAgenda && acciones.length === 0) return resumirAgenda(ctx);
+  const frases = acciones.map((a) => {
+    switch (a.tipo) {
+      case "crear_tarea":
+        return `Listo, creé la tarea ${a.titulo}.`;
+      case "crear_recordatorio":
+        return `Te lo recuerdo el ${a.fecha} a las ${a.hora}: ${a.actividad}.`;
+      case "crear_evento":
+        return `Agendé ${a.titulo} el ${a.fecha} a las ${a.hora}.`;
+      case "guardar_memoria":
+        return `Lo recordaré: ${a.informacion}.`;
+      case "crear_automatizacion":
+        return `Programé ${a.accion} ${a.frecuencia} a las ${a.hora}.`;
+      case "completar":
+        return `Marqué eso como hecho.`;
+      case "eliminar":
+        return `Listo, lo eliminé.`;
+      case "modificar":
+        return `Listo, lo actualicé.`;
+      default:
+        return "Listo.";
+    }
+  });
+  return frases.join(" ") || (consultoAgenda ? resumirAgenda(ctx) : "Listo.");
+}
 
 function sistema(ctx: ContextoDilo) {
   return `Eres Dilo, el asistente personal de ${ctx.nombre}. Hablas español, breve y natural, como un ayudante de voz: directo, calmado, útil.
@@ -356,17 +415,19 @@ export async function conversarConDilo(
 
   const acciones: AccionDilo[] = [];
 
-  for (let i = 0; i < 6; i++) {
+  try {
     const respuesta = await fetch("https://api.openai.com/v1/chat/completions", {
       method: "POST",
       headers: {
         Authorization: `Bearer ${clave}`,
         "Content-Type": "application/json",
       },
+      signal: AbortSignal.timeout(8_000),
       body: JSON.stringify({
         model: "gpt-4o-mini",
         temperature: 0.4,
         tools: HERRAMIENTAS,
+        tool_choice: "auto",
         messages: mensajes,
       }),
     });
@@ -377,19 +438,14 @@ export async function conversarConDilo(
       choices?: { message?: MensajeApi }[];
     };
     const msg = cuerpo.choices?.[0]?.message;
-    if (!msg) break;
+    if (!msg) return { texto: "", acciones };
 
     const llamadas = msg.tool_calls ?? [];
     if (llamadas.length === 0) {
       return { texto: (msg.content ?? "").trim(), acciones };
     }
 
-    mensajes.push({
-      role: "assistant",
-      content: msg.content ?? "",
-      tool_calls: llamadas,
-    });
-
+    let consultoAgenda = false;
     for (const llamada of llamadas) {
       let args: Record<string, unknown> = {};
       try {
@@ -397,14 +453,16 @@ export async function conversarConDilo(
       } catch {
         args = {};
       }
-      const resultado = ejecutarHerramienta(llamada.function.name, args, contexto, acciones);
-      mensajes.push({
-        role: "tool",
-        tool_call_id: llamada.id,
-        content: resultado,
-      });
+      if (llamada.function.name === "consultar_agenda") consultoAgenda = true;
+      ejecutarHerramienta(llamada.function.name, args, contexto, acciones);
     }
-  }
 
-  return { texto: "Listo.", acciones };
+    const hablado = (msg.content ?? "").trim();
+    return {
+      texto: hablado || confirmarAcciones(acciones, contexto, consultoAgenda),
+      acciones,
+    };
+  } catch {
+    return { texto: "", acciones };
+  }
 }

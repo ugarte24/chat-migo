@@ -9,7 +9,6 @@ import {
   microfonoDisponible,
   silenciar,
   transcribirAudio,
-  transcribirEnNavegador,
   desbloquearAudio,
 } from "@/lib/voz";
 
@@ -87,8 +86,7 @@ export function Dilo() {
     setAviso(null);
     try {
       const blob = await detener();
-      const transcrito =
-        (await transcribirAudio(blob)) || (await transcribirEnNavegador().catch(() => ""));
+      const transcrito = await transcribirAudio(blob);
       if (transcrito) enviar(transcrito, "voz");
       else setAviso("No te entendí. Pulsa el orbe y habla más cerca, o escribe abajo.");
     } catch {

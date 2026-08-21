@@ -25,6 +25,7 @@ export async function interpretarConIa(texto: string): Promise<Interpretacion> {
         Authorization: `Bearer ${clave}`,
         "Content-Type": "application/json",
       },
+      signal: AbortSignal.timeout(8_000),
       body: JSON.stringify({
         model: "gpt-4o-mini",
         temperature: 0,
@@ -68,14 +69,19 @@ export async function transcribirWhisper(audio: ArrayBuffer, mime = "audio/webm"
   cuerpo.append("file", archivo);
   cuerpo.append("model", "whisper-1");
   cuerpo.append("language", "es");
-  const respuesta = await fetch("https://api.openai.com/v1/audio/transcriptions", {
-    method: "POST",
-    headers: { Authorization: `Bearer ${clave}` },
-    body: cuerpo,
-  });
-  if (!respuesta.ok) return null;
-  const json = (await respuesta.json()) as { text?: string };
-  return json.text?.trim() || null;
+  try {
+    const respuesta = await fetch("https://api.openai.com/v1/audio/transcriptions", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${clave}` },
+      signal: AbortSignal.timeout(14_000),
+      body: cuerpo,
+    });
+    if (!respuesta.ok) return null;
+    const json = (await respuesta.json()) as { text?: string };
+    return json.text?.trim() || null;
+  } catch {
+    return null;
+  }
 }
 
 /** Voz de Dilo: ElevenLabs (ID de voz copiado). Si falta la clave, no habla por API. */
@@ -105,18 +111,23 @@ async function sintetizarElevenLabs(texto: string): Promise<ArrayBuffer | null> 
   const clave = envServidor("ELEVENLABS_API_KEY");
   if (clave.length < 10) return null;
   const voz = vozElevenLabsId();
-  const respuesta = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${voz}`, {
-    method: "POST",
-    headers: {
-      "xi-api-key": clave,
-      Accept: "audio/mpeg",
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      text: texto.slice(0, 4000),
-      model_id: "eleven_multilingual_v2",
-    }),
-  });
-  if (!respuesta.ok) return null;
-  return respuesta.arrayBuffer();
+  try {
+    const respuesta = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${voz}`, {
+      method: "POST",
+      headers: {
+        "xi-api-key": clave,
+        Accept: "audio/mpeg",
+        "Content-Type": "application/json",
+      },
+      signal: AbortSignal.timeout(12_000),
+      body: JSON.stringify({
+        text: texto.slice(0, 4000),
+        model_id: "eleven_multilingual_v2",
+      }),
+    });
+    if (!respuesta.ok) return null;
+    return respuesta.arrayBuffer();
+  } catch {
+    return null;
+  }
 }

@@ -1,3 +1,5 @@
+import { fetchConTiempo } from "./utils";
+
 let audioActual: HTMLAudioElement | null = null;
 let audioDesbloqueado = false;
 
@@ -45,10 +47,14 @@ export async function transcribirAudio(blob: Blob): Promise<string | null> {
   const form = new FormData();
   const nombre = blob.type.includes("mp4") ? "nota.m4a" : "nota.webm";
   form.append("audio", blob, nombre);
-  const res = await fetch("/api/transcribir", { method: "POST", body: form });
-  if (!res.ok) return null;
-  const cuerpo = (await res.json().catch(() => null)) as { texto?: string } | null;
-  return cuerpo?.texto?.trim() || null;
+  try {
+    const res = await fetchConTiempo("/api/transcribir", { method: "POST", body: form }, 16_000);
+    if (!res.ok) return null;
+    const cuerpo = (await res.json().catch(() => null)) as { texto?: string } | null;
+    return cuerpo?.texto?.trim() || null;
+  } catch {
+    return null;
+  }
 }
 
 export function transcribirEnNavegador(): Promise<string> {
@@ -63,12 +69,28 @@ export function transcribirEnNavegador(): Promise<string> {
     rec.interimResults = false;
     rec.maxAlternatives = 1;
     rec.continuous = false;
+    let cerrado = false;
+    const listo = (fn: () => void) => {
+      if (cerrado) return;
+      cerrado = true;
+      window.clearTimeout(id);
+      fn();
+    };
+    const id = window.setTimeout(() => {
+      try {
+        rec.stop();
+      } catch {
+        /* ya cerrado */
+      }
+      listo(() => reject(new Error("No se entendió el audio.")));
+    }, 8_000);
     rec.onresult = (evento) => {
       const texto = evento.results[0]?.[0]?.transcript?.trim() ?? "";
-      if (texto) resolve(texto);
-      else reject(new Error("No se entendió el audio."));
+      if (texto) listo(() => resolve(texto));
+      else listo(() => reject(new Error("No se entendió el audio.")));
     };
-    rec.onerror = () => reject(new Error("No se pudo transcribir el audio."));
+    rec.onerror = () => listo(() => reject(new Error("No se pudo transcribir el audio.")));
+    rec.onend = () => listo(() => reject(new Error("No se entendió el audio.")));
     rec.start();
   });
 }
@@ -138,7 +160,16 @@ export async function iniciarGrabacion(alCortar?: () => void): Promise<{ detener
       new Promise((resolve, reject) => {
         cerrado = true;
         void audioCtx?.close().catch(() => undefined);
+        const tope = window.setTimeout(() => {
+          stream.getTracks().forEach((t) => t.stop());
+          if (trozos.length === 0) {
+            reject(new Error("No se grabó audio."));
+            return;
+          }
+          resolve(new Blob(trozos, { type: rec.mimeType || "audio/webm" }));
+        }, 2_000);
         rec.onstop = () => {
+          window.clearTimeout(tope);
           stream.getTracks().forEach((t) => t.stop());
           if (trozos.length === 0) {
             reject(new Error("No se grabó audio."));
@@ -147,8 +178,13 @@ export async function iniciarGrabacion(alCortar?: () => void): Promise<{ detener
           resolve(new Blob(trozos, { type: rec.mimeType || "audio/webm" }));
         };
         if (rec.state === "inactive") {
+          window.clearTimeout(tope);
           stream.getTracks().forEach((t) => t.stop());
-          reject(new Error("La grabación ya había terminado."));
+          if (trozos.length === 0) {
+            reject(new Error("La grabación ya había terminado."));
+            return;
+          }
+          resolve(new Blob(trozos, { type: rec.mimeType || "audio/webm" }));
           return;
         }
         rec.stop();
@@ -169,11 +205,15 @@ export async function hablar(texto: string) {
 
 async function hablarConOpenAi(texto: string) {
   try {
-    const res = await fetch("/api/hablar", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ texto }),
-    });
+    const res = await fetchConTiempo(
+      "/api/hablar",
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ texto }),
+      },
+      14_000,
+    );
     if (!res.ok) return false;
     const blob = await res.blob();
     if (blob.size < 80) return false;

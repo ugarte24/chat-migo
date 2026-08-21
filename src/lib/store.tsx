@@ -25,6 +25,7 @@ import {
   type Tarea,
 } from "./datos";
 import type { AccionDilo, ContextoDilo, MensajeDilo, TurnoDilo } from "./dilo";
+import { fetchConTiempo } from "./utils";
 import { avisosPendientes, buscarUno } from "./motor";
 import {
   borrarAutomatizacion,
@@ -102,31 +103,21 @@ const CONFIG_INICIAL: ConfiguracionUsuario = {
   preferenciaVoz: true,
 };
 
-async function interpretarSolicitud(texto: string): Promise<Interpretacion> {
-  try {
-    const res = await fetch("/api/interpretar", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ texto }),
-    });
-    if (res.ok) return (await res.json()) as Interpretacion;
-  } catch {
-    /* usa el motor local */
-  }
-  return interpretar(texto);
-}
-
 async function pedirTurnoDilo(
   mensaje: string,
   historial: MensajeDilo[],
   contexto: ContextoDilo,
 ): Promise<TurnoDilo | null> {
   try {
-    const res = await fetch("/api/dilo", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ mensaje, historial, contexto }),
-    });
+    const res = await fetchConTiempo(
+      "/api/dilo",
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ mensaje, historial, contexto }),
+      },
+      12_000,
+    );
     if (!res.ok) return null;
     return (await res.json()) as TurnoDilo;
   } catch {
@@ -899,18 +890,27 @@ export function AsistenteProvider({ children }: { children: ReactNode }) {
             content: m.texto,
           }));
 
-        const turno = await pedirTurnoDilo(texto, historial, contexto);
-        if (turno?.texto || (turno && turno.acciones.length > 0)) {
-          aplicarAcciones(turno.acciones, texto);
+        try {
+          const turno = await pedirTurnoDilo(texto, historial, contexto);
+          if (turno?.texto || (turno && turno.acciones.length > 0)) {
+            aplicarAcciones(turno.acciones, texto);
+            push({
+              autor: "asistente",
+              texto: turno.texto || "Listo.",
+              tipo: turno.acciones.length > 0 ? "confirmacion" : "texto",
+            });
+          } else {
+            aplicarInterpretacion(texto, interpretar(texto));
+          }
+        } catch {
           push({
             autor: "asistente",
-            texto: turno.texto || "Listo.",
-            tipo: turno.acciones.length > 0 ? "confirmacion" : "texto",
+            texto: "No pude responder ahora. Intenta otra vez o escribe el mensaje.",
+            tipo: "error",
           });
-        } else {
-          aplicarInterpretacion(texto, await interpretarSolicitud(texto));
+        } finally {
+          setPensando(false);
         }
-        setPensando(false);
       })();
     },
     [aplicarAcciones, aplicarInterpretacion, push, usuario],
