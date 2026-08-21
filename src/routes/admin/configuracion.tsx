@@ -13,11 +13,10 @@ function AdminConfig() {
     <div className="mx-auto max-w-3xl">
       <PageHeader
         titulo="Configuración del sistema"
-        descripcion="Parámetros globales del prototipo. No otorgan acceso a la memoria de los usuarios."
+        descripcion="Parámetros globales. No otorgan acceso a la memoria de los usuarios."
       />
       <section className="panel-card space-y-4 p-5">
         <Fila titulo="Registro de actividad" texto="Guardar cada acción del sistema en el historial." />
-        <Fila titulo="Modo prototipo" texto="Usar datos simulados en lugar de servicios externos." defaultOn />
         <Fila
           titulo="Acceso a memoria de usuarios"
           texto="Bloqueado por diseño. Requiere autorización explícita del usuario."

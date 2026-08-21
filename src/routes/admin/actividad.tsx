@@ -1,4 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { useEffect, useState } from "react";
 import { PageHeader } from "@/components/panel/PageHeader";
 import { EstadoBadge } from "@/components/panel/EstadoBadge";
 import {
@@ -9,7 +10,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { ACTIVIDAD_ADMIN } from "@/lib/datos";
+import { listarActividadSistema, type ActividadSistema } from "@/lib/repositorio";
 
 export const Route = createFileRoute("/admin/actividad")({
   head: () => ({ meta: [{ title: "Actividad | Administración" }] }),
@@ -17,6 +18,12 @@ export const Route = createFileRoute("/admin/actividad")({
 });
 
 function ActividadPage() {
+  const [filas, setFilas] = useState<ActividadSistema[]>([]);
+
+  useEffect(() => {
+    void listarActividadSistema().then(setFilas);
+  }, []);
+
   return (
     <div>
       <PageHeader
@@ -34,16 +41,24 @@ function ActividadPage() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {ACTIVIDAD_ADMIN.map((a) => (
-              <TableRow key={a.id}>
-                <TableCell className="font-medium">{a.usuario}</TableCell>
-                <TableCell>{a.accion}</TableCell>
-                <TableCell className="whitespace-nowrap">{a.fecha}</TableCell>
-                <TableCell>
-                  <EstadoBadge valor={a.estado} />
+            {filas.length === 0 ? (
+              <TableRow>
+                <TableCell colSpan={4} className="text-sm text-muted-foreground">
+                  Aún no hay actividad registrada.
                 </TableCell>
               </TableRow>
-            ))}
+            ) : (
+              filas.map((a) => (
+                <TableRow key={a.id}>
+                  <TableCell className="font-medium">{a.usuario}</TableCell>
+                  <TableCell>{a.accion}</TableCell>
+                  <TableCell className="whitespace-nowrap">{a.fecha}</TableCell>
+                  <TableCell>
+                    <EstadoBadge valor={a.estado} />
+                  </TableCell>
+                </TableRow>
+              ))
+            )}
           </TableBody>
         </Table>
       </div>

@@ -569,9 +569,9 @@ Cuando llegue la fecha y hora establecida:
 
 “🔔 Recordatorio: llevar los documentos.”
 
-18. FUNCIONALIDADES INICIALES DEL PROTOTIPO
+18. FUNCIONALIDADES INICIALES DEL SISTEMA
 
-Para mantener el proyecto viable y demostrable, el prototipo inicial deberá concentrarse en:
+Para mantener el proyecto viable y demostrable, la primera versión deberá concentrarse en:
 
  Comunicación mediante WhatsApp.
 
@@ -873,14 +873,27 @@ npm run dev
 
 Copia `.env.example` a `.env.local` y completa las variables.
 
+Aplica las migraciones de `supabase/migrations` en el proyecto de Supabase. El archivo `20260820213000_auth_rls_motor.sql` activa login, RLS por usuario y la columna de última ejecución.
+
+El registro público está cerrado. Crea el primer usuario en Supabase → Authentication → Users → Add user (correo confirmado); el perfil se crea solo. Luego:
+
+```sql
+update public.perfiles set rol = 'administrador' where correo = 'tu@correo';
+```
+
+El resto de cuentas se crean desde **Administración → Usuarios**.
+
 ## Despliegue en Vercel
 
 1. Sube el repo a GitHub e impórtalo en [vercel.com/new](https://vercel.com/new).
 2. El framework debe detectarse como **TanStack Start**. Node 20.
 3. En **Environment Variables** agrega, para Production, Preview y Development:
-   - `VITE_PUBLIC_APP_URL`
    - `VITE_SUPABASE_URL`
    - `VITE_SUPABASE_ANON_KEY`
+   - `SUPABASE_SERVICE_ROLE_KEY` (solo servidor, para `/api/ejecutar` y WhatsApp)
+   - Opcional: `OPENAI_API_KEY`, `WHATSAPP_TOKEN`, `WHATSAPP_PHONE_NUMBER_ID`, `WHATSAPP_VERIFY_TOKEN`
 4. Despliega. Luego en Supabase → Authentication → URL Configuration usa esa URL de producción (y `https://*.vercel.app/**` para previews).
+5. Webhook de WhatsApp: `https://tu-dominio.vercel.app/api/whatsapp`
+6. El cron de Vercel llama a `/api/ejecutar` cada hora. En el panel, los avisos también se disparan cada 20 segundos mientras la pestaña está abierta.
 
 No subas la *service role* de Supabase como variable `VITE_*`.

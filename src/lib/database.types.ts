@@ -19,6 +19,7 @@ export type Database = {
           hora: string;
           id: string;
           nombre: string;
+          ultima_ejecucion: string | null;
           usuario_id: string;
         };
         Insert: {
@@ -30,6 +31,7 @@ export type Database = {
           hora: string;
           id?: string;
           nombre: string;
+          ultima_ejecucion?: string | null;
           usuario_id: string;
         };
         Update: {
@@ -41,9 +43,18 @@ export type Database = {
           hora?: string;
           id?: string;
           nombre?: string;
+          ultima_ejecucion?: string | null;
           usuario_id?: string;
         };
-        Relationships: [];
+        Relationships: [
+          {
+            foreignKeyName: "historial_usuario_id_fkey",
+            columns: ["usuario_id"],
+            isOneToOne: false,
+            referencedRelation: "perfiles",
+            referencedColumns: ["id"],
+          },
+        ];
       };
       conversaciones: {
         Row: {
@@ -70,7 +81,15 @@ export type Database = {
           tipo?: string;
           usuario_id?: string;
         };
-        Relationships: [];
+        Relationships: [
+          {
+            foreignKeyName: "historial_usuario_id_fkey",
+            columns: ["usuario_id"],
+            isOneToOne: false,
+            referencedRelation: "perfiles",
+            referencedColumns: ["id"],
+          },
+        ];
       };
       eventos: {
         Row: {
@@ -109,7 +128,15 @@ export type Database = {
           titulo?: string;
           usuario_id?: string;
         };
-        Relationships: [];
+        Relationships: [
+          {
+            foreignKeyName: "historial_usuario_id_fkey",
+            columns: ["usuario_id"],
+            isOneToOne: false,
+            referencedRelation: "perfiles",
+            referencedColumns: ["id"],
+          },
+        ];
       };
       historial: {
         Row: {
@@ -142,7 +169,15 @@ export type Database = {
           solicitud?: string;
           usuario_id?: string;
         };
-        Relationships: [];
+        Relationships: [
+          {
+            foreignKeyName: "historial_usuario_id_fkey",
+            columns: ["usuario_id"],
+            isOneToOne: false,
+            referencedRelation: "perfiles",
+            referencedColumns: ["id"],
+          },
+        ];
       };
       memoria: {
         Row: {
@@ -169,29 +204,43 @@ export type Database = {
           informacion?: string;
           usuario_id?: string;
         };
-        Relationships: [];
+        Relationships: [
+          {
+            foreignKeyName: "historial_usuario_id_fkey",
+            columns: ["usuario_id"],
+            isOneToOne: false,
+            referencedRelation: "perfiles",
+            referencedColumns: ["id"],
+          },
+        ];
       };
       perfiles: {
         Row: {
           configuracion: Json;
+          correo: string | null;
           created_at: string;
           id: string;
           nombre: string;
           numero: string | null;
+          rol: string;
         };
         Insert: {
           configuracion?: Json;
+          correo?: string | null;
           created_at?: string;
           id?: string;
           nombre: string;
           numero?: string | null;
+          rol?: string;
         };
         Update: {
           configuracion?: Json;
+          correo?: string | null;
           created_at?: string;
           id?: string;
           nombre?: string;
           numero?: string | null;
+          rol?: string;
         };
         Relationships: [];
       };
@@ -226,7 +275,15 @@ export type Database = {
           id?: string;
           usuario_id?: string;
         };
-        Relationships: [];
+        Relationships: [
+          {
+            foreignKeyName: "historial_usuario_id_fkey",
+            columns: ["usuario_id"],
+            isOneToOne: false,
+            referencedRelation: "perfiles",
+            referencedColumns: ["id"],
+          },
+        ];
       };
       tareas: {
         Row: {
@@ -262,7 +319,15 @@ export type Database = {
           titulo?: string;
           usuario_id?: string;
         };
-        Relationships: [];
+        Relationships: [
+          {
+            foreignKeyName: "historial_usuario_id_fkey",
+            columns: ["usuario_id"],
+            isOneToOne: false,
+            referencedRelation: "perfiles",
+            referencedColumns: ["id"],
+          },
+        ];
       };
     };
     Views: Record<string, never>;

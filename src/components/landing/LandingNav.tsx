@@ -55,10 +55,10 @@ export function LandingNav() {
 
         <div className="hidden items-center gap-3 lg:flex">
           <Button asChild variant="ghost" size="sm">
-            <Link to="/panel">Iniciar sesión</Link>
+            <Link to="/iniciar-sesion">Iniciar sesión</Link>
           </Button>
           <Button asChild size="sm">
-            <Link to="/chat">Comenzar ahora</Link>
+            <Link to="/iniciar-sesion">Comenzar ahora</Link>
           </Button>
         </div>
 
@@ -84,12 +84,12 @@ export function LandingNav() {
                 </a>
               ))}
               <Button asChild variant="ghost" className="mt-4 justify-start px-0">
-                <Link to="/panel" onClick={() => setAbierto(false)}>
+                <Link to="/iniciar-sesion" onClick={() => setAbierto(false)}>
                   Iniciar sesión
                 </Link>
               </Button>
               <Button asChild>
-                <Link to="/chat" onClick={() => setAbierto(false)}>
+                <Link to="/iniciar-sesion" onClick={() => setAbierto(false)}>
                   Comenzar ahora
                 </Link>
               </Button>

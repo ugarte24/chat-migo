@@ -16,8 +16,6 @@ import {
 import type { Json } from "./database.types";
 import { supabase } from "./supabase";
 
-export const USUARIO_DEMO_ID = "00000000-0000-4000-8000-000000000001";
-
 export const nuevoId = () => crypto.randomUUID();
 
 export type EstadoPersistencia = "memoria" | "conectado" | "error";
@@ -31,6 +29,8 @@ export interface EstadoRemoto {
   automatizaciones: Automatizacion[];
   historial: HistorialItem[];
   configuracion: ConfiguracionUsuario;
+  nombre: string;
+  numero: string | null;
 }
 
 const CONFIG_DEFECTO: ConfiguracionUsuario = {
@@ -38,7 +38,7 @@ const CONFIG_DEFECTO: ConfiguracionUsuario = {
   avisosRecordatorios: true,
   avisosAutomatizaciones: true,
   memoriaActiva: true,
-  preferenciaVoz: false,
+  preferenciaVoz: true,
 };
 
 function horaCorta(valor: string): string {
@@ -93,26 +93,25 @@ function configDesdeJson(valor: Json): ConfiguracionUsuario {
     avisosRecordatorios: o["avisosRecordatorios"] !== false,
     avisosAutomatizaciones: o["avisosAutomatizaciones"] !== false,
     memoriaActiva: o["memoriaActiva"] !== false,
-    preferenciaVoz: o["preferenciaVoz"] === true,
+    preferenciaVoz: o["preferenciaVoz"] !== false,
   };
 }
 
-export async function cargarEstadoRemoto(): Promise<EstadoRemoto | null> {
-  if (!supabase) return null;
+export async function cargarEstadoRemoto(usuarioId: string): Promise<EstadoRemoto | null> {
+  if (!supabase || !usuarioId) return null;
 
   const db = supabase;
-  const uid = USUARIO_DEMO_ID;
 
   const [perfil, tareas, recordatorios, eventos, memoria, automatizaciones, historial, conversaciones] =
     await Promise.all([
-      db.from("perfiles").select("nombre, configuracion").eq("id", uid).maybeSingle(),
-      db.from("tareas").select("*").eq("usuario_id", uid).order("created_at", { ascending: false }),
-      db.from("recordatorios").select("*").eq("usuario_id", uid).order("fecha", { ascending: true }),
-      db.from("eventos").select("*").eq("usuario_id", uid).order("fecha", { ascending: true }),
-      db.from("memoria").select("*").eq("usuario_id", uid).order("created_at", { ascending: false }),
-      db.from("automatizaciones").select("*").eq("usuario_id", uid).order("created_at", { ascending: true }),
-      db.from("historial").select("*").eq("usuario_id", uid).order("created_at", { ascending: false }),
-      db.from("conversaciones").select("*").eq("usuario_id", uid).order("created_at", { ascending: true }),
+      db.from("perfiles").select("nombre, numero, configuracion").eq("id", usuarioId).maybeSingle(),
+      db.from("tareas").select("*").eq("usuario_id", usuarioId).order("created_at", { ascending: false }),
+      db.from("recordatorios").select("*").eq("usuario_id", usuarioId).order("fecha", { ascending: true }),
+      db.from("eventos").select("*").eq("usuario_id", usuarioId).order("fecha", { ascending: true }),
+      db.from("memoria").select("*").eq("usuario_id", usuarioId).order("created_at", { ascending: false }),
+      db.from("automatizaciones").select("*").eq("usuario_id", usuarioId).order("created_at", { ascending: true }),
+      db.from("historial").select("*").eq("usuario_id", usuarioId).order("created_at", { ascending: false }),
+      db.from("conversaciones").select("*").eq("usuario_id", usuarioId).order("created_at", { ascending: true }),
     ]);
 
   const error =
@@ -131,6 +130,8 @@ export async function cargarEstadoRemoto(): Promise<EstadoRemoto | null> {
   }
 
   return {
+    nombre: perfil.data?.nombre ?? "Usuario",
+    numero: perfil.data?.numero ?? null,
     configuracion: configDesdeJson(perfil.data?.configuracion ?? {}),
     tareas: (tareas.data ?? []).flatMap((fila) => {
       if (!esPrioridad(fila.prioridad) || !esEstadoTarea(fila.estado)) return [];
@@ -194,6 +195,7 @@ export async function cargarEstadoRemoto(): Promise<EstadoRemoto | null> {
       frecuencia: fila.frecuencia,
       hora: horaCorta(fila.hora),
       activa: fila.activa,
+      ultimaEjecucion: fila.ultima_ejecucion,
     })),
     historial: (historial.data ?? []).flatMap((fila) => {
       if (!esEstadoHistorial(fila.estado)) return [];
@@ -224,11 +226,11 @@ export async function cargarEstadoRemoto(): Promise<EstadoRemoto | null> {
   };
 }
 
-export async function guardarTarea(t: Tarea) {
-  if (!supabase) return;
+export async function guardarTarea(t: Tarea, usuarioId: string) {
+  if (!supabase || !usuarioId) return;
   const { error } = await supabase.from("tareas").upsert({
     id: t.id,
-    usuario_id: USUARIO_DEMO_ID,
+    usuario_id: usuarioId,
     titulo: t.titulo,
     descripcion: t.descripcion,
     fecha: t.fecha,
@@ -245,11 +247,11 @@ export async function borrarTarea(id: string) {
   logError("borrar tarea", error);
 }
 
-export async function guardarRecordatorio(r: Recordatorio) {
-  if (!supabase) return;
+export async function guardarRecordatorio(r: Recordatorio, usuarioId: string) {
+  if (!supabase || !usuarioId) return;
   const { error } = await supabase.from("recordatorios").upsert({
     id: r.id,
-    usuario_id: USUARIO_DEMO_ID,
+    usuario_id: usuarioId,
     actividad: r.actividad,
     fecha: r.fecha,
     hora: r.hora,
@@ -265,11 +267,11 @@ export async function borrarRecordatorio(id: string) {
   logError("borrar recordatorio", error);
 }
 
-export async function guardarEvento(e: Evento) {
-  if (!supabase) return;
+export async function guardarEvento(e: Evento, usuarioId: string) {
+  if (!supabase || !usuarioId) return;
   const { error } = await supabase.from("eventos").upsert({
     id: e.id,
-    usuario_id: USUARIO_DEMO_ID,
+    usuario_id: usuarioId,
     titulo: e.titulo,
     descripcion: e.descripcion,
     persona: e.persona,
@@ -287,11 +289,11 @@ export async function borrarEvento(id: string) {
   logError("borrar evento", error);
 }
 
-export async function guardarMemoria(m: MemoriaItem) {
-  if (!supabase) return;
+export async function guardarMemoria(m: MemoriaItem, usuarioId: string) {
+  if (!supabase || !usuarioId) return;
   const { error } = await supabase.from("memoria").upsert({
     id: m.id,
-    usuario_id: USUARIO_DEMO_ID,
+    usuario_id: usuarioId,
     informacion: m.informacion,
     categoria: m.categoria,
     fecha: m.fecha,
@@ -305,23 +307,24 @@ export async function borrarMemoria(id: string) {
   logError("borrar memoria", error);
 }
 
-export async function vaciarMemoria() {
-  if (!supabase) return;
-  const { error } = await supabase.from("memoria").delete().eq("usuario_id", USUARIO_DEMO_ID);
+export async function vaciarMemoria(usuarioId: string) {
+  if (!supabase || !usuarioId) return;
+  const { error } = await supabase.from("memoria").delete().eq("usuario_id", usuarioId);
   logError("vaciar memoria", error);
 }
 
-export async function guardarAutomatizacion(a: Automatizacion) {
-  if (!supabase) return;
+export async function guardarAutomatizacion(a: Automatizacion, usuarioId: string) {
+  if (!supabase || !usuarioId) return;
   const { error } = await supabase.from("automatizaciones").upsert({
     id: a.id,
-    usuario_id: USUARIO_DEMO_ID,
+    usuario_id: usuarioId,
     nombre: a.nombre,
     accion: a.accion,
     cuando: a.cuando,
     frecuencia: a.frecuencia,
     hora: a.hora,
     activa: a.activa,
+    ultima_ejecucion: a.ultimaEjecucion,
   });
   logError("automatización", error);
 }
@@ -332,11 +335,11 @@ export async function borrarAutomatizacion(id: string) {
   logError("borrar automatización", error);
 }
 
-export async function guardarHistorial(h: HistorialItem) {
-  if (!supabase) return;
+export async function guardarHistorial(h: HistorialItem, usuarioId: string) {
+  if (!supabase || !usuarioId) return;
   const { error } = await supabase.from("historial").upsert({
     id: h.id,
-    usuario_id: USUARIO_DEMO_ID,
+    usuario_id: usuarioId,
     fecha: h.fecha,
     hora: h.hora,
     solicitud: h.solicitud,
@@ -346,12 +349,12 @@ export async function guardarHistorial(h: HistorialItem) {
   logError("historial", error);
 }
 
-export async function guardarMensaje(m: MensajeChat) {
-  if (!supabase) return;
+export async function guardarMensaje(m: MensajeChat, usuarioId: string) {
+  if (!supabase || !usuarioId) return;
   if (m.tipo === "proceso" || m.tipo === "analisis") return;
   const { error } = await supabase.from("conversaciones").upsert({
     id: m.id,
-    usuario_id: USUARIO_DEMO_ID,
+    usuario_id: usuarioId,
     autor: m.autor,
     mensaje: m.texto,
     tipo: m.tipo,
@@ -359,11 +362,177 @@ export async function guardarMensaje(m: MensajeChat) {
   logError("mensaje", error);
 }
 
-export async function guardarConfiguracion(c: ConfiguracionUsuario) {
-  if (!supabase) return;
+export async function guardarConfiguracion(c: ConfiguracionUsuario, usuarioId: string) {
+  if (!supabase || !usuarioId) return;
   const { error } = await supabase
     .from("perfiles")
-    .update({ configuracion: c })
-    .eq("id", USUARIO_DEMO_ID);
+    .update({ configuracion: c as unknown as Json })
+    .eq("id", usuarioId);
   logError("configuración", error);
+}
+
+export async function actualizarDatosPerfil(
+  usuarioId: string,
+  cambios: { nombre?: string; numero?: string | null },
+) {
+  if (!supabase || !usuarioId) return;
+  const { error } = await supabase.from("perfiles").update(cambios).eq("id", usuarioId);
+  logError("perfil datos", error);
+}
+
+export type RolPerfil = "usuario" | "administrador";
+
+export interface PerfilSesion {
+  id: string;
+  nombre: string;
+  correo: string | null;
+  numero: string | null;
+  rol: RolPerfil;
+  registro: string;
+}
+
+function filaAPerfil(fila: {
+  id: string;
+  nombre: string;
+  correo: string | null;
+  numero: string | null;
+  rol: string;
+  created_at: string;
+}): PerfilSesion {
+  return {
+    id: fila.id,
+    nombre: fila.nombre,
+    correo: fila.correo,
+    numero: fila.numero,
+    rol: fila.rol === "administrador" ? "administrador" : "usuario",
+    registro: fila.created_at.slice(0, 10),
+  };
+}
+
+export async function cargarPerfil(id: string): Promise<PerfilSesion | null> {
+  if (!supabase) return null;
+  const { data, error } = await supabase
+    .from("perfiles")
+    .select("id, nombre, correo, numero, rol, created_at")
+    .eq("id", id)
+    .maybeSingle();
+  logError("perfil", error);
+  if (!data) return null;
+  return filaAPerfil(data);
+}
+
+export async function asegurarPerfil(
+  id: string,
+  nombre: string,
+  correo: string | null,
+): Promise<PerfilSesion | null> {
+  if (!supabase) return null;
+  const { error } = await supabase.from("perfiles").upsert({
+    id,
+    nombre,
+    correo,
+    rol: "usuario",
+  });
+  logError("asegurar perfil", error);
+  return cargarPerfil(id);
+}
+
+export async function listarPerfiles(): Promise<PerfilSesion[]> {
+  if (!supabase) return [];
+  const { data, error } = await supabase
+    .from("perfiles")
+    .select("id, nombre, correo, numero, rol, created_at")
+    .order("created_at", { ascending: true });
+  logError("perfiles", error);
+  return (data ?? []).map(filaAPerfil);
+}
+
+/** Crea una cuenta de Auth + perfil. Solo el administrador autenticado puede usarlo. */
+export async function crearUsuarioPorAdmin(
+  nombre: string,
+  correo: string,
+  clave: string,
+): Promise<string | null> {
+  if (!supabase) return "Supabase no está configurado.";
+  const { data } = await supabase.auth.getSession();
+  const token = data.session?.access_token;
+  if (!token) return "Debes iniciar sesión.";
+  const res = await fetch("/api/usuarios", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${token}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ nombre: nombre.trim(), correo: correo.trim(), clave }),
+  });
+  const cuerpo = (await res.json().catch(() => ({}))) as { error?: string };
+  if (!res.ok) return cuerpo.error || "No se pudo crear la cuenta.";
+  return null;
+}
+
+export async function contarTabla(tabla: "tareas" | "recordatorios" | "automatizaciones") {
+  if (!supabase) return 0;
+  const { count, error } = await supabase.from(tabla).select("id", { count: "exact", head: true });
+  logError(`contar ${tabla}`, error);
+  return count ?? 0;
+}
+
+export interface ActividadSistema {
+  id: string;
+  usuario: string;
+  accion: string;
+  fecha: string;
+  estado: HistorialItem["estado"];
+}
+
+export async function listarActividadSistema(): Promise<ActividadSistema[]> {
+  if (!supabase) return [];
+  const { data, error } = await supabase
+    .from("historial")
+    .select("id, accion, fecha, hora, estado, perfiles!usuario_id(nombre)")
+    .order("created_at", { ascending: false })
+    .limit(40);
+  logError("actividad sistema", error);
+  return (data ?? []).flatMap((fila) => {
+    if (!esEstadoHistorial(fila.estado)) return [];
+    const perfil = fila.perfiles as { nombre: string } | { nombre: string }[] | null;
+    const nombre = Array.isArray(perfil) ? perfil[0]?.nombre : perfil?.nombre;
+    return [
+      {
+        id: fila.id,
+        usuario: nombre ?? "Usuario",
+        accion: fila.accion,
+        fecha: `${fila.fecha} ${horaCorta(fila.hora)}`,
+        estado: fila.estado,
+      },
+    ];
+  });
+}
+
+export interface AutomatizacionSistema extends Automatizacion {
+  usuario: string;
+}
+
+export async function listarAutomatizacionesSistema(): Promise<AutomatizacionSistema[]> {
+  if (!supabase) return [];
+  const { data, error } = await supabase
+    .from("automatizaciones")
+    .select("*, perfiles!usuario_id(nombre)")
+    .order("created_at", { ascending: true });
+  logError("automatizaciones sistema", error);
+  return (data ?? []).map((fila) => {
+    const perfil = fila.perfiles as { nombre: string } | { nombre: string }[] | null;
+    const nombre = Array.isArray(perfil) ? perfil[0]?.nombre : perfil?.nombre;
+    return {
+      id: fila.id,
+      nombre: fila.nombre,
+      accion: fila.accion,
+      cuando: fila.cuando,
+      frecuencia: fila.frecuencia,
+      hora: horaCorta(fila.hora),
+      activa: fila.activa,
+      ultimaEjecucion: fila.ultima_ejecucion,
+      usuario: nombre ?? "Usuario",
+    };
+  });
 }

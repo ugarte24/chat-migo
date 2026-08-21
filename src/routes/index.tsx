@@ -136,7 +136,7 @@ function Landing() {
               </p>
               <div className="mt-8 flex flex-col gap-3 sm:flex-row">
                 <Button asChild size="lg" className="h-12 px-7 text-[15px]">
-                  <Link to="/chat">Comenzar ahora</Link>
+                  <Link to="/iniciar-sesion">Comenzar ahora</Link>
                 </Button>
                 <Button asChild size="lg" variant="outline" className="h-12 px-7 text-[15px]">
                   <a href="#como-funciona">Ver cómo funciona</a>
@@ -400,7 +400,7 @@ function Landing() {
                       ))}
                     </ul>
                     <Button asChild className="mt-8" variant={plan.destacado ? "default" : "outline"}>
-                      <Link to="/chat">{plan.cta}</Link>
+                      <Link to="/iniciar-sesion">{plan.cta}</Link>
                     </Button>
                   </article>
                 </Reveal>
@@ -448,7 +448,7 @@ function Landing() {
                   Dile a Dilo lo que necesitas y deja que se encargue de organizarlo.
                 </p>
                 <Button asChild size="lg" variant="secondary" className="mt-8 h-12 px-7">
-                  <Link to="/chat">Comenzar ahora</Link>
+                  <Link to="/iniciar-sesion">Comenzar ahora</Link>
                 </Button>
                 <p className="mt-5 text-sm text-white/70">
                   Texto o voz. Una conversación. Menos cosas que recordar.

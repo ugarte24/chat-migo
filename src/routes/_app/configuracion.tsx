@@ -1,10 +1,13 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { useState } from "react";
 import { toast } from "sonner";
 import { PageHeader } from "@/components/panel/PageHeader";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
+import { useAuth } from "@/lib/auth";
+import { actualizarDatosPerfil } from "@/lib/repositorio";
 import { useAsistente } from "@/lib/store";
 
 export const Route = createFileRoute("/_app/configuracion")({
@@ -13,8 +16,12 @@ export const Route = createFileRoute("/_app/configuracion")({
 });
 
 function ConfiguracionPage() {
-  const { usuario, memoria, configuracion, actualizarConfiguracion, limpiarMemoria } = useAsistente();
+  const { usuario, usuarioId, memoria, configuracion, actualizarConfiguracion, limpiarMemoria } =
+    useAsistente();
+  const { perfil, cerrarSesion, refrescarPerfil } = useAuth();
   const navigate = useNavigate();
+  const [nombre, setNombre] = useState(perfil?.nombre ?? usuario);
+  const [numero, setNumero] = useState(perfil?.numero ?? "");
 
   return (
     <div className="mx-auto max-w-3xl">
@@ -25,13 +32,35 @@ function ConfiguracionPage() {
 
       <Seccion titulo="Perfil">
         <Campo label="Nombre">
-          <Input defaultValue={usuario} readOnly />
+          <Input value={nombre} onChange={(e) => setNombre(e.target.value)} />
+        </Campo>
+        <Campo label="Correo">
+          <Input value={perfil?.correo ?? ""} readOnly />
         </Campo>
         <Campo label="Número de WhatsApp">
-          <Input defaultValue="+591 700 12345" readOnly />
+          <Input
+            value={numero}
+            onChange={(e) => setNumero(e.target.value)}
+            placeholder="+591 700 12345"
+          />
         </Campo>
+        <Button
+          variant="outline"
+          onClick={() => {
+            void actualizarDatosPerfil(usuarioId, {
+              nombre: nombre.trim() || usuario,
+              numero: numero.trim() || null,
+            }).then(() => {
+              void refrescarPerfil();
+              toast.success("Perfil actualizado");
+            });
+          }}
+        >
+          Guardar perfil
+        </Button>
         <p className="text-xs text-muted-foreground">
-          En el prototipo el perfil es simulado. Más adelante se conectará a la cuenta real.
+          Si más adelante conectas WhatsApp, Dilo usará este número para avisos. Hoy todo se maneja
+          dentro de la aplicación.
         </p>
       </Seccion>
 
@@ -84,8 +113,8 @@ function ConfiguracionPage() {
 
       <Seccion titulo="Preferencias">
         <FilaSwitch
-          titulo="Preferir notas de voz"
-          texto="El asistente priorizará respuestas y recordatorios en formato de voz."
+          titulo="Dilo habla"
+          texto="El asistente lee en voz alta las confirmaciones y avisos."
           checked={configuracion.preferenciaVoz}
           onChange={(v) => actualizarConfiguracion({ preferenciaVoz: v })}
         />
@@ -95,8 +124,10 @@ function ConfiguracionPage() {
         <Button
           variant="destructive"
           onClick={() => {
-            toast.success("Sesión cerrada (simulado)");
-            void navigate({ to: "/" });
+            void cerrarSesion().then(() => {
+              toast.success("Sesión cerrada");
+              void navigate({ to: "/" });
+            });
           }}
         >
           Cerrar sesión

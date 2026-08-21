@@ -10,11 +10,8 @@ function normalizarUrl(valor: string): string {
   return `https://${limpio}`;
 }
 
-/** URL pública de la app: .env, Vercel o el origen del navegador. */
+/** URL pública de la app: Vercel o el origen del navegador. */
 export function urlPublicaApp(): string {
-  const explicita = import.meta.env.VITE_PUBLIC_APP_URL;
-  if (explicita?.trim()) return normalizarUrl(explicita);
-
   const produccion = envProceso("VERCEL_PROJECT_PRODUCTION_URL");
   if (produccion) return normalizarUrl(produccion);
 
@@ -23,6 +20,16 @@ export function urlPublicaApp(): string {
 
   if (typeof window !== "undefined") return window.location.origin;
   return "";
+}
+
+export function urlWebhookWhatsApp() {
+  const base = urlPublicaApp();
+  return base ? `${base}/api/whatsapp` : "/api/whatsapp";
+}
+
+export function urlCronEjecutar() {
+  const base = urlPublicaApp();
+  return base ? `${base}/api/ejecutar` : "/api/ejecutar";
 }
 
 /** True cuando el código corre en una Function de Vercel (no en el navegador). */

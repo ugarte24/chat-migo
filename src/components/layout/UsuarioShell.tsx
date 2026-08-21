@@ -1,28 +1,27 @@
-import { Link, useRouterState } from "@tanstack/react-router";
+import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
 import type { ReactNode } from "react";
 import { useState } from "react";
+import type { LucideIcon } from "lucide-react";
 import {
   AudioLines,
   Bell,
   Brain,
   CalendarDays,
   History,
-  LayoutDashboard,
   ListTodo,
+  LogOut,
   Menu,
-  MessageCircle,
   Repeat,
   Settings,
   Shield,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
+import { useAuth } from "@/lib/auth";
 import { cn } from "@/lib/utils";
-import { useAsistente } from "@/lib/store";
 
 const NAV = [
-  { to: "/panel", etiqueta: "Inicio", icono: LayoutDashboard, exact: true },
-  { to: "/chat", etiqueta: "Chat", icono: MessageCircle, exact: true },
+  { to: "/panel", etiqueta: "Dilo", icono: AudioLines, exact: true },
   { to: "/tareas", etiqueta: "Tareas", icono: ListTodo, exact: true },
   { to: "/recordatorios", etiqueta: "Recordatorios", icono: Bell, exact: true },
   { to: "/eventos", etiqueta: "Eventos", icono: CalendarDays, exact: true },
@@ -33,13 +32,15 @@ const NAV = [
 ] as const;
 
 export function UsuarioShell({ children }: { children: ReactNode }) {
-  const { usuario } = useAsistente();
+  const { perfil, cerrarSesion } = useAuth();
+  const navigate = useNavigate();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const [abierto, setAbierto] = useState(false);
   const actual = NAV.find((n) => n.to === pathname);
+  const usuario = perfil?.nombre ?? "Cuenta";
 
   return (
-    <div className="flex min-h-screen bg-background">
+    <div className="flex h-svh bg-background">
       <aside className="hidden w-64 shrink-0 flex-col border-r border-border bg-sidebar lg:flex">
         <Marca />
         <nav className="flex-1 space-y-1 px-3 py-4">
@@ -47,10 +48,16 @@ export function UsuarioShell({ children }: { children: ReactNode }) {
             <NavItem key={item.to} {...item} activo={pathname === item.to} />
           ))}
         </nav>
-        <PieUsuario usuario={usuario} />
+        <PieUsuario
+          usuario={usuario}
+          esAdmin={perfil?.rol === "administrador"}
+          onSalir={() => {
+            void cerrarSesion().then(() => navigate({ to: "/" }));
+          }}
+        />
       </aside>
 
-      <div className="flex min-w-0 flex-1 flex-col">
+      <div className="flex min-h-0 min-w-0 flex-1 flex-col">
         <header className="flex items-center gap-3 border-b border-border bg-card px-4 py-3 lg:px-8">
           <Sheet open={abierto} onOpenChange={setAbierto}>
             <SheetTrigger asChild>
@@ -75,14 +82,24 @@ export function UsuarioShell({ children }: { children: ReactNode }) {
             </SheetContent>
           </Sheet>
           <div className="min-w-0 flex-1">
-            <p className="truncate text-sm font-semibold">{actual?.etiqueta ?? "Panel"}</p>
-            <p className="truncate text-xs text-muted-foreground">Panel del usuario · {usuario}</p>
+            <p className="truncate text-sm font-semibold">{actual?.etiqueta ?? "Dilo"}</p>
+            <p className="truncate text-xs text-muted-foreground">
+              {pathname === "/panel" ? "Asistente · habla o escribe" : `Archivo · ${usuario}`}
+            </p>
           </div>
           <Button asChild variant="outline" size="sm" className="hidden sm:inline-flex">
             <Link to="/">Sitio público</Link>
           </Button>
         </header>
-        <main className="flex-1 overflow-auto bg-hero-glow p-4 md:p-8">{children}</main>
+        <main
+          className={
+            pathname === "/panel"
+              ? "flex min-h-0 flex-1 flex-col overflow-hidden bg-background"
+              : "flex-1 overflow-auto bg-hero-glow p-4 md:p-8"
+          }
+        >
+          {children}
+        </main>
       </div>
     </div>
   );
@@ -108,7 +125,7 @@ function NavItem({
 }: {
   to: (typeof NAV)[number]["to"];
   etiqueta: string;
-  icono: typeof LayoutDashboard;
+  icono: LucideIcon;
   activo: boolean;
   onClick?: () => void;
 }) {
@@ -129,17 +146,34 @@ function NavItem({
   );
 }
 
-function PieUsuario({ usuario }: { usuario: string }) {
+function PieUsuario({
+  usuario,
+  esAdmin,
+  onSalir,
+}: {
+  usuario: string;
+  esAdmin: boolean;
+  onSalir: () => void;
+}) {
   return (
     <div className="space-y-2 border-t border-border p-4">
       <p className="truncate text-sm font-medium">{usuario}</p>
-      <p className="text-xs text-muted-foreground">Cuenta personal · prototipo</p>
-      <Link
-        to="/admin"
+      <p className="text-xs text-muted-foreground">Cuenta personal</p>
+      {esAdmin ? (
+        <Link
+          to="/admin"
+          className="inline-flex items-center gap-1.5 text-xs text-muted-foreground transition-colors hover:text-primary"
+        >
+          <Shield className="size-3.5" /> Área del administrador
+        </Link>
+      ) : null}
+      <button
+        type="button"
+        onClick={onSalir}
         className="inline-flex items-center gap-1.5 text-xs text-muted-foreground transition-colors hover:text-primary"
       >
-        <Shield className="size-3.5" /> Área del administrador
-      </Link>
+        <LogOut className="size-3.5" /> Cerrar sesión
+      </button>
     </div>
   );
 }

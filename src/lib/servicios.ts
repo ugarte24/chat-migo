@@ -1,5 +1,4 @@
-// Contratos de integración futura. El prototipo no llama a servicios reales:
-// las implementaciones actuales viven en memoria (store + motor local).
+// Contratos de integración e implementaciones actuales.
 
 import type { Interpretacion } from "./asistente";
 import type { Automatizacion, Evento, MemoriaItem, Recordatorio, Tarea } from "./datos";
@@ -35,13 +34,13 @@ export interface MotorAutomatizacion {
   cancelar(id: string): Promise<void>;
 }
 
-/** Marcadores de estado para el panel de integraciones del prototipo. */
+/** Implementaciones vivas en el código. */
 export const SERVICIOS_FUTUROS = [
-  "WhatsApp Business Platform",
-  "API de inteligencia artificial",
-  "Servicio de reconocimiento de voz",
-  "Supabase",
-  "Vercel",
+  "WhatsApp Business Platform (/api/whatsapp)",
+  "API de inteligencia artificial (/api/interpretar)",
+  "Servicio de reconocimiento de voz (navegador + /api/transcribir)",
+  "Supabase (auth + RLS)",
+  "Vercel (SSR + cron /api/ejecutar)",
   "Google Calendar",
-  "Sistema de automatización",
+  "Sistema de automatización (panel + cron)",
 ] as const;

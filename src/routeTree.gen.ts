@@ -12,6 +12,8 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AppRouteRouteImport } from './routes/_app/route'
 import { Route as AdminRouteRouteImport } from './routes/admin/route'
+import { Route as IniciarSesionRouteImport } from './routes/iniciar-sesion'
+import { Route as RegistroRouteImport } from './routes/registro'
 import { Route as AppAutomatizacionesRouteImport } from './routes/_app/automatizaciones'
 import { Route as AppChatRouteImport } from './routes/_app/chat'
 import { Route as AppConfiguracionRouteImport } from './routes/_app/configuracion'
@@ -27,6 +29,12 @@ import { Route as AdminAutomatizacionesRouteImport } from './routes/admin/automa
 import { Route as AdminConfiguracionRouteImport } from './routes/admin/configuracion'
 import { Route as AdminIntegracionesRouteImport } from './routes/admin/integraciones'
 import { Route as AdminUsuariosRouteImport } from './routes/admin/usuarios'
+import { Route as ApiEjecutarRouteImport } from './routes/api/ejecutar'
+import { Route as ApiEstadoRouteImport } from './routes/api/estado'
+import { Route as ApiInterpretarRouteImport } from './routes/api/interpretar'
+import { Route as ApiTranscribirRouteImport } from './routes/api/transcribir'
+import { Route as ApiUsuariosRouteImport } from './routes/api/usuarios'
+import { Route as ApiWhatsappRouteImport } from './routes/api/whatsapp'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -40,6 +48,16 @@ const AppRouteRoute = AppRouteRouteImport.update({
 const AdminRouteRoute = AdminRouteRouteImport.update({
   id: '/admin',
   path: '/admin',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const IniciarSesionRoute = IniciarSesionRouteImport.update({
+  id: '/iniciar-sesion',
+  path: '/iniciar-sesion',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const RegistroRoute = RegistroRouteImport.update({
+  id: '/registro',
+  path: '/registro',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AppAutomatizacionesRoute = AppAutomatizacionesRouteImport.update({
@@ -117,10 +135,42 @@ const AdminUsuariosRoute = AdminUsuariosRouteImport.update({
   path: '/usuarios',
   getParentRoute: () => AdminRouteRoute,
 } as any)
+const ApiEjecutarRoute = ApiEjecutarRouteImport.update({
+  id: '/api/ejecutar',
+  path: '/api/ejecutar',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiEstadoRoute = ApiEstadoRouteImport.update({
+  id: '/api/estado',
+  path: '/api/estado',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiInterpretarRoute = ApiInterpretarRouteImport.update({
+  id: '/api/interpretar',
+  path: '/api/interpretar',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiTranscribirRoute = ApiTranscribirRouteImport.update({
+  id: '/api/transcribir',
+  path: '/api/transcribir',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiUsuariosRoute = ApiUsuariosRouteImport.update({
+  id: '/api/usuarios',
+  path: '/api/usuarios',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiWhatsappRoute = ApiWhatsappRouteImport.update({
+  id: '/api/whatsapp',
+  path: '/api/whatsapp',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/admin': typeof AdminRouteRouteWithChildren
+  '/iniciar-sesion': typeof IniciarSesionRoute
+  '/registro': typeof RegistroRoute
   '/automatizaciones': typeof AppAutomatizacionesRoute
   '/chat': typeof AppChatRoute
   '/configuracion': typeof AppConfiguracionRoute
@@ -135,10 +185,18 @@ export interface FileRoutesByFullPath {
   '/admin/configuracion': typeof AdminConfiguracionRoute
   '/admin/integraciones': typeof AdminIntegracionesRoute
   '/admin/usuarios': typeof AdminUsuariosRoute
+  '/api/ejecutar': typeof ApiEjecutarRoute
+  '/api/estado': typeof ApiEstadoRoute
+  '/api/interpretar': typeof ApiInterpretarRoute
+  '/api/transcribir': typeof ApiTranscribirRoute
+  '/api/usuarios': typeof ApiUsuariosRoute
+  '/api/whatsapp': typeof ApiWhatsappRoute
   '/admin/': typeof AdminIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/iniciar-sesion': typeof IniciarSesionRoute
+  '/registro': typeof RegistroRoute
   '/automatizaciones': typeof AppAutomatizacionesRoute
   '/chat': typeof AppChatRoute
   '/configuracion': typeof AppConfiguracionRoute
@@ -153,6 +211,12 @@ export interface FileRoutesByTo {
   '/admin/configuracion': typeof AdminConfiguracionRoute
   '/admin/integraciones': typeof AdminIntegracionesRoute
   '/admin/usuarios': typeof AdminUsuariosRoute
+  '/api/ejecutar': typeof ApiEjecutarRoute
+  '/api/estado': typeof ApiEstadoRoute
+  '/api/interpretar': typeof ApiInterpretarRoute
+  '/api/transcribir': typeof ApiTranscribirRoute
+  '/api/usuarios': typeof ApiUsuariosRoute
+  '/api/whatsapp': typeof ApiWhatsappRoute
   '/admin': typeof AdminIndexRoute
 }
 export interface FileRoutesById {
@@ -160,6 +224,8 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/_app': typeof AppRouteRouteWithChildren
   '/admin': typeof AdminRouteRouteWithChildren
+  '/iniciar-sesion': typeof IniciarSesionRoute
+  '/registro': typeof RegistroRoute
   '/_app/automatizaciones': typeof AppAutomatizacionesRoute
   '/_app/chat': typeof AppChatRoute
   '/_app/configuracion': typeof AppConfiguracionRoute
@@ -174,6 +240,12 @@ export interface FileRoutesById {
   '/admin/configuracion': typeof AdminConfiguracionRoute
   '/admin/integraciones': typeof AdminIntegracionesRoute
   '/admin/usuarios': typeof AdminUsuariosRoute
+  '/api/ejecutar': typeof ApiEjecutarRoute
+  '/api/estado': typeof ApiEstadoRoute
+  '/api/interpretar': typeof ApiInterpretarRoute
+  '/api/transcribir': typeof ApiTranscribirRoute
+  '/api/usuarios': typeof ApiUsuariosRoute
+  '/api/whatsapp': typeof ApiWhatsappRoute
   '/admin/': typeof AdminIndexRoute
 }
 export interface FileRouteTypes {
@@ -181,6 +253,8 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/admin'
+    | '/iniciar-sesion'
+    | '/registro'
     | '/automatizaciones'
     | '/chat'
     | '/configuracion'
@@ -195,10 +269,18 @@ export interface FileRouteTypes {
     | '/admin/configuracion'
     | '/admin/integraciones'
     | '/admin/usuarios'
+    | '/api/ejecutar'
+    | '/api/estado'
+    | '/api/interpretar'
+    | '/api/transcribir'
+    | '/api/usuarios'
+    | '/api/whatsapp'
     | '/admin/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/iniciar-sesion'
+    | '/registro'
     | '/automatizaciones'
     | '/chat'
     | '/configuracion'
@@ -213,12 +295,20 @@ export interface FileRouteTypes {
     | '/admin/configuracion'
     | '/admin/integraciones'
     | '/admin/usuarios'
+    | '/api/ejecutar'
+    | '/api/estado'
+    | '/api/interpretar'
+    | '/api/transcribir'
+    | '/api/usuarios'
+    | '/api/whatsapp'
     | '/admin'
   id:
     | '__root__'
     | '/'
     | '/_app'
     | '/admin'
+    | '/iniciar-sesion'
+    | '/registro'
     | '/_app/automatizaciones'
     | '/_app/chat'
     | '/_app/configuracion'
@@ -233,6 +323,12 @@ export interface FileRouteTypes {
     | '/admin/configuracion'
     | '/admin/integraciones'
     | '/admin/usuarios'
+    | '/api/ejecutar'
+    | '/api/estado'
+    | '/api/interpretar'
+    | '/api/transcribir'
+    | '/api/usuarios'
+    | '/api/whatsapp'
     | '/admin/'
   fileRoutesById: FileRoutesById
 }
@@ -240,6 +336,14 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AppRouteRoute: typeof AppRouteRouteWithChildren
   AdminRouteRoute: typeof AdminRouteRouteWithChildren
+  IniciarSesionRoute: typeof IniciarSesionRoute
+  RegistroRoute: typeof RegistroRoute
+  ApiEjecutarRoute: typeof ApiEjecutarRoute
+  ApiEstadoRoute: typeof ApiEstadoRoute
+  ApiInterpretarRoute: typeof ApiInterpretarRoute
+  ApiTranscribirRoute: typeof ApiTranscribirRoute
+  ApiUsuariosRoute: typeof ApiUsuariosRoute
+  ApiWhatsappRoute: typeof ApiWhatsappRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -263,6 +367,20 @@ declare module '@tanstack/react-router' {
       path: '/admin'
       fullPath: '/admin'
       preLoaderRoute: typeof AdminRouteRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/iniciar-sesion': {
+      id: '/iniciar-sesion'
+      path: '/iniciar-sesion'
+      fullPath: '/iniciar-sesion'
+      preLoaderRoute: typeof IniciarSesionRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/registro': {
+      id: '/registro'
+      path: '/registro'
+      fullPath: '/registro'
+      preLoaderRoute: typeof RegistroRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/_app/automatizaciones': {
@@ -370,6 +488,48 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminUsuariosRouteImport
       parentRoute: typeof AdminRouteRoute
     }
+    '/api/ejecutar': {
+      id: '/api/ejecutar'
+      path: '/api/ejecutar'
+      fullPath: '/api/ejecutar'
+      preLoaderRoute: typeof ApiEjecutarRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/estado': {
+      id: '/api/estado'
+      path: '/api/estado'
+      fullPath: '/api/estado'
+      preLoaderRoute: typeof ApiEstadoRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/interpretar': {
+      id: '/api/interpretar'
+      path: '/api/interpretar'
+      fullPath: '/api/interpretar'
+      preLoaderRoute: typeof ApiInterpretarRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/transcribir': {
+      id: '/api/transcribir'
+      path: '/api/transcribir'
+      fullPath: '/api/transcribir'
+      preLoaderRoute: typeof ApiTranscribirRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/usuarios': {
+      id: '/api/usuarios'
+      path: '/api/usuarios'
+      fullPath: '/api/usuarios'
+      preLoaderRoute: typeof ApiUsuariosRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/whatsapp': {
+      id: '/api/whatsapp'
+      path: '/api/whatsapp'
+      fullPath: '/api/whatsapp'
+      preLoaderRoute: typeof ApiWhatsappRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -427,6 +587,14 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AppRouteRoute: AppRouteRouteWithChildren,
   AdminRouteRoute: AdminRouteRouteWithChildren,
+  IniciarSesionRoute: IniciarSesionRoute,
+  RegistroRoute: RegistroRoute,
+  ApiEjecutarRoute: ApiEjecutarRoute,
+  ApiEstadoRoute: ApiEstadoRoute,
+  ApiInterpretarRoute: ApiInterpretarRoute,
+  ApiTranscribirRoute: ApiTranscribirRoute,
+  ApiUsuariosRoute: ApiUsuariosRoute,
+  ApiWhatsappRoute: ApiWhatsappRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

@@ -1,4 +1,4 @@
-// Motor de interpretación de lenguaje natural (prototipo local, sin backend).
+// Motor de interpretación de lenguaje natural.
 // Detecta intención, fecha, hora, actividad y persona a partir de una frase en español.
 
 export type Prioridad = "alta" | "media" | "baja";
@@ -59,10 +59,22 @@ export type Intencion =
   | "automatizacion"
   | "memoria"
   | "consulta"
+  | "completar"
+  | "modificar"
+  | "eliminar"
   | "desconocida";
+
+export type Entidad =
+  | "tarea"
+  | "recordatorio"
+  | "evento"
+  | "memoria"
+  | "automatizacion"
+  | null;
 
 export interface Interpretacion {
   intencion: Intencion;
+  entidad: Entidad;
   actividad: string;
   fecha: string | null;
   hora: string | null;
@@ -73,6 +85,12 @@ export interface Interpretacion {
 }
 
 export const uid = () => Math.random().toString(36).slice(2, 10);
+
+export const normalizar = (t: string) =>
+  t
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "");
 
 const DIAS = [
   "domingo",
@@ -99,12 +117,6 @@ const NUMEROS: Record<string, number> = {
   once: 11,
   doce: 12,
 };
-
-const normalizar = (t: string) =>
-  t
-    .toLowerCase()
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "");
 
 export const formatoFecha = (d: Date) =>
   d.toLocaleDateString("es", { day: "numeric", month: "long", year: "numeric" });
@@ -201,12 +213,22 @@ function extraerFrecuencia(texto: string): string | null {
   return null;
 }
 
+function detectarEntidad(n: string): Entidad {
+  if (/\b(tarea|tareas|pendiente)\b/.test(n)) return "tarea";
+  if (/\brecordatorio/.test(n)) return "recordatorio";
+  if (/\b(evento|reunion|cita|compromiso)\b/.test(n)) return "evento";
+  if (/\b(memoria|recuerdo)\b/.test(n)) return "memoria";
+  if (/\bautomatizacion/.test(n)) return "automatizacion";
+  return null;
+}
+
 function limpiarActividad(texto: string): string {
   let t = texto
     .replace(
-      /^(por favor\s+)?(oye\s+)?(recu[eé]rdame|rec[oó]rdame|agenda(r)?|agrega(r)?( a mis tareas)?|a[ñn]ade|anota|programa(r)?|crea(r)?|guarda|recuerda que|no olvides)\s*/i,
+      /^(por favor\s+)?(oye\s+)?(recu[eé]rdame|rec[oó]rdame|agenda(r)?|agrega(r)?( a mis tareas)?|a[ñn]ade|anota|programa(r)?|crea(r)?|guarda|recuerda que|no olvides|marca( como)?( hecha| completada)?|completé|complete|termin[eé]|elimina(r)?|borra(r)?|quita(r)?|cancela(r)?|cambia(r)?|modifica(r)?|actualiza(r)?|olvida(r)?)\s*/i,
       "",
     )
+    .replace(/\b(la|el|los|las)\s+(tarea|recordatorio|evento|reunión|reunion|cita|automatización|automatizacion)\s+(de|del)?\s*/gi, "")
     .replace(/\b(todos los (lunes|martes|mi[eé]rcoles|jueves|viernes|s[aá]bado|domingo)s?)\b/gi, "")
     .replace(/\b(todos los d[ií]as|cada d[ií]a|semanalmente|cada semana|mensualmente|cada mes)\b/gi, "")
     .replace(/\b(hoy|ma[ñn]ana|pasado ma[ñn]ana)\b/gi, "")
@@ -232,8 +254,21 @@ export function interpretar(texto: string): Interpretacion {
       ? "baja"
       : "media";
 
+  const entidad = detectarEntidad(n);
   let intencion: Intencion = "desconocida";
   if (
+    /\b(marca(r)? como (hecha|completada|hecho|listo)|completé|complete|ya (la |lo )?(hice|terminé|termine)|termin[eé])\b/.test(
+      n,
+    )
+  ) {
+    intencion = "completar";
+  } else if (
+    /\b(elimina(r)?|borra(r)?|quita(r)?|cancela(r)?|olvida(r)?|no (lo |la )?recuerdes)\b/.test(n)
+  ) {
+    intencion = "eliminar";
+  } else if (/\b(cambia(r)?|modifica(r)?|actualiza(r)?|mueve|pospone|pasalo|pásalo)\b/.test(n)) {
+    intencion = "modificar";
+  } else if (
     /\bque tengo\b|\bque hay\b|\bmis tareas\b|\bmi agenda\b|\bconsulta(r)?\b|\bmuestrame\b|\bque recuerdas\b|\bque tareas\b|\btengo para hoy\b|\bque tengo pendiente\b/.test(
       n,
     )
@@ -253,9 +288,21 @@ export function interpretar(texto: string): Interpretacion {
 
   const actividad = limpiarActividad(texto);
   const faltaInformacion =
-    (intencion === "recordatorio" || intencion === "evento") && (!fecha || !hora);
+    ((intencion === "recordatorio" || intencion === "evento") && (!fecha || !hora)) ||
+    ((intencion === "completar" || intencion === "modificar" || intencion === "eliminar") &&
+      actividad.trim().length < 3);
 
-  return { intencion, actividad, fecha, hora, persona, frecuencia, prioridad, faltaInformacion };
+  return {
+    intencion,
+    entidad,
+    actividad,
+    fecha,
+    hora,
+    persona,
+    frecuencia,
+    prioridad,
+    faltaInformacion,
+  };
 }
 
 export const fechaLegible = (iso: string | null) => {

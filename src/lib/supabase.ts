@@ -15,7 +15,7 @@ function credencialesListas(origen: string, clave: string): boolean {
 
 export const supabaseConfigurado = credencialesListas(url, anonKey);
 
-/** Cliente listo cuando existen las variables de entorno. Si no, el prototipo sigue en memoria. */
+/** Cliente listo cuando existen las variables de entorno. Si no, se usan datos locales. */
 export const supabase: SupabaseClient<Database> | null = supabaseConfigurado
   ? createClient<Database>(url, anonKey)
   : null;

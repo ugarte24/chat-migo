@@ -31,6 +31,7 @@ const VACIA: Omit<Automatizacion, "id"> = {
   frecuencia: "Todos los viernes",
   hora: "17:00",
   activa: true,
+  ultimaEjecucion: null,
 };
 
 function AutomatizacionesPage() {
@@ -51,6 +52,7 @@ function AutomatizacionesPage() {
             frecuencia: a.frecuencia,
             hora: a.hora,
             activa: a.activa,
+            ultimaEjecucion: a.ultimaEjecucion,
           }
         : VACIA,
     );

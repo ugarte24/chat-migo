@@ -1,11 +1,11 @@
-import { Link, useRouterState } from "@tanstack/react-router";
+import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
 import type { ReactNode } from "react";
 import { useState } from "react";
 import {
   Activity,
   LayoutDashboard,
+  LogOut,
   Menu,
-  MessageCircle,
   Plug,
   Repeat,
   Settings,
@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
+import { useAuth } from "@/lib/auth";
 import { cn } from "@/lib/utils";
 
 const NAV = [
@@ -29,6 +30,8 @@ export function AdminShell({ children }: { children: ReactNode }) {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const [abierto, setAbierto] = useState(false);
   const actual = NAV.find((n) => n.to === pathname);
+  const { perfil, cerrarSesion } = useAuth();
+  const navigate = useNavigate();
 
   return (
     <div className="flex min-h-screen bg-background">
@@ -48,12 +51,18 @@ export function AdminShell({ children }: { children: ReactNode }) {
           ))}
         </nav>
         <div className="border-t border-border p-4">
-          <Link
-            to="/panel"
-            className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-primary"
+          <p className="truncate text-xs font-medium">{perfil?.nombre}</p>
+          <p className="truncate text-[11px] text-muted-foreground">{perfil?.correo}</p>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="mt-2 h-8 w-full justify-start px-0 text-xs text-muted-foreground"
+            onClick={() => {
+              void cerrarSesion().then(() => navigate({ to: "/iniciar-sesion" }));
+            }}
           >
-            <MessageCircle className="size-3.5" /> Volver al panel de usuario
-          </Link>
+            <LogOut className="mr-1.5 size-3.5" /> Cerrar sesión
+          </Button>
         </div>
       </aside>
 
@@ -83,7 +92,7 @@ export function AdminShell({ children }: { children: ReactNode }) {
           </Sheet>
           <div className="min-w-0 flex-1">
             <p className="truncate text-sm font-semibold">{actual?.etiqueta ?? "Admin"}</p>
-            <p className="text-xs text-muted-foreground">Supervisión del sistema · prototipo</p>
+            <p className="text-xs text-muted-foreground">Supervisión del sistema</p>
           </div>
         </header>
         <main className="flex-1 overflow-auto bg-hero-glow p-4 md:p-8">{children}</main>

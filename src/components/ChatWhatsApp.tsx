@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import type { MensajeChat } from "@/lib/store";
 import { cn } from "@/lib/utils";
+import { reconocimientoVozDisponible, transcribirEnNavegador } from "@/lib/voz";
 
 interface Props {
   mensajes: MensajeChat[];
@@ -15,13 +16,15 @@ export const SUGERENCIAS_CHAT = [
   "Recuérdame mañana a las 8 enviar el informe.",
   "Agenda una reunión con Carlos el viernes a las 3.",
   "¿Qué tareas tengo para hoy?",
-  "Todos los lunes a las 9 recuérdame revisar mis tareas.",
+  "Marca como hecha comprar materiales.",
+  "Elimina el recordatorio de llamar al banco.",
 ];
 
 export function ChatWhatsApp({ mensajes, onEnviar, sugerencias }: Props) {
   const [texto, setTexto] = useState("");
   const [grabando, setGrabando] = useState(false);
   const finRef = useRef<HTMLDivElement>(null);
+  const vozReal = reconocimientoVozDisponible();
 
   useEffect(() => {
     finRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -34,14 +37,24 @@ export function ChatWhatsApp({ mensajes, onEnviar, sugerencias }: Props) {
     setTexto("");
   };
 
-  const simularVoz = () => {
+  const enviarVoz = async () => {
     if (grabando) return;
     setGrabando(true);
-    const frase = texto.trim() || "mañana a las ocho recuérdame llevar los documentos";
-    setTimeout(() => {
-      setGrabando(false);
+    try {
+      if (vozReal) {
+        const transcrito = await transcribirEnNavegador();
+        enviar(transcrito, "voz");
+        return;
+      }
+      const frase = texto.trim() || "mañana a las ocho recuérdame llevar los documentos";
+      await new Promise((r) => setTimeout(r, 900));
       enviar(frase, "voz");
-    }, 1100);
+    } catch {
+      const frase = texto.trim();
+      if (frase) enviar(frase, "voz");
+    } finally {
+      setGrabando(false);
+    }
   };
 
   return (
@@ -55,7 +68,7 @@ export function ChatWhatsApp({ mensajes, onEnviar, sugerencias }: Props) {
           <p className="text-xs text-primary">en línea · interpreta texto y voz</p>
         </div>
         <span className="hidden rounded-full bg-ai-soft px-2.5 py-1 text-[10px] font-medium text-ai sm:inline">
-          IA simulada
+          {vozReal ? "Voz del navegador" : "Voz local"}
         </span>
       </header>
 
@@ -67,7 +80,8 @@ export function ChatWhatsApp({ mensajes, onEnviar, sugerencias }: Props) {
           <div className="flex justify-end">
             <div className="max-w-[82%] rounded-2xl rounded-br-sm bg-bubble-user px-3.5 py-2 text-sm text-bubble-user-foreground">
               <span className="flex items-center gap-2 text-xs">
-                <Mic className="size-3 animate-pulse" /> Grabando nota de voz…
+                <Mic className="size-3 animate-pulse" />{" "}
+                {vozReal ? "Escuchando…" : "Grabando nota de voz…"}
               </span>
             </div>
           </div>
@@ -98,14 +112,14 @@ export function ChatWhatsApp({ mensajes, onEnviar, sugerencias }: Props) {
         <Input
           value={texto}
           onChange={(e) => setTexto(e.target.value)}
-          placeholder={grabando ? "Grabando nota de voz…" : "Escribe una instrucción…"}
+          placeholder={grabando ? "Escuchando…" : "Escribe una instrucción…"}
           className="h-11 rounded-full border-border bg-card"
           aria-label="Mensaje para el asistente"
           disabled={grabando}
         />
         <Button
           type="button"
-          onClick={simularVoz}
+          onClick={() => void enviarVoz()}
           size="icon"
           variant="secondary"
           className={cn("size-11 shrink-0 rounded-full", grabando && "animate-pulse bg-ai/20")}
@@ -186,7 +200,7 @@ function Burbuja({ mensaje: m }: { mensaje: MensajeChat }) {
                 <span key={i} className="w-0.5 rounded-full bg-current" style={{ height: h }} />
               ))}
             </span>
-            nota de voz · 0:04
+            nota de voz
           </span>
         )}
         {m.tipo === "confirmacion" && (
@@ -194,11 +208,9 @@ function Burbuja({ mensaje: m }: { mensaje: MensajeChat }) {
         )}
         {m.tipo === "error" && <CircleAlert className="mb-1 inline size-3.5 text-destructive" />}
         {m.tipo === "aclaracion" && <HelpCircle className="mb-1 inline size-3.5 text-warning" />}
-        {m.tipo !== "voz" && (
-          <span className={m.tipo === "confirmacion" || m.tipo === "error" || m.tipo === "aclaracion" ? "ml-1" : ""}>
-            {m.texto}
-          </span>
-        )}
+        <span className={m.tipo === "confirmacion" || m.tipo === "error" || m.tipo === "aclaracion" ? "ml-1" : ""}>
+          {m.texto}
+        </span>
         <span className="mt-1 block text-right text-[10px] opacity-60">{m.hora}</span>
       </div>
     </div>

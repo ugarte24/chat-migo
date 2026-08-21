@@ -109,7 +109,7 @@ alter table public.automatizaciones enable row level security;
 alter table public.historial enable row level security;
 alter table public.conversaciones enable row level security;
 
--- Prototipo sin login: el cliente usa la publishable key (rol anon).
+-- Acceso inicial: el cliente usa la publishable key (rol anon).
 -- Sustituir por políticas por usuario cuando exista auth.
 create policy dilo_perfiles_anon on public.perfiles for all to anon, authenticated using (true) with check (true);
 create policy dilo_tareas_anon on public.tareas for all to anon, authenticated using (true) with check (true);
@@ -132,7 +132,7 @@ insert into public.tareas (usuario_id, titulo, descripcion, fecha, prioridad, es
   ('00000000-0000-4000-8000-000000000001', 'Enviar el informe mensual', 'Adjuntar el resumen de actividades y enviarlo por correo.', current_date, 'alta', 'en progreso', 'chat'),
   ('00000000-0000-4000-8000-000000000001', 'Comprar materiales de oficina', 'Hojas, marcadores y carpetas para el proyecto.', current_date + 1, 'media', 'pendiente', 'chat'),
   ('00000000-0000-4000-8000-000000000001', 'Revisar el presupuesto del proyecto', 'Validar los montos con el área administrativa.', current_date + 3, 'alta', 'pendiente', 'panel'),
-  ('00000000-0000-4000-8000-000000000001', 'Actualizar la documentación del sistema', 'Incluir los nuevos módulos del prototipo.', current_date - 2, 'baja', 'completada', 'panel');
+  ('00000000-0000-4000-8000-000000000001', 'Actualizar la documentación del sistema', 'Incluir los nuevos módulos del sistema.', current_date - 2, 'baja', 'completada', 'panel');
 
 insert into public.recordatorios (usuario_id, actividad, fecha, hora, estado, activo) values
   ('00000000-0000-4000-8000-000000000001', 'Llevar los documentos a la oficina', current_date, '08:00', 'pendiente', true),

@@ -12,6 +12,7 @@ import { useEffect, type ReactNode } from "react";
 import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
 import { AsistenteProvider } from "../lib/store";
+import { AuthProvider } from "../lib/auth";
 import { Toaster } from "../components/ui/sonner";
 
 function NotFoundComponent() {
@@ -140,10 +141,12 @@ function RootComponent() {
 
   return (
     <QueryClientProvider client={queryClient}>
-      <AsistenteProvider>
-        <Outlet />
-        <Toaster />
-      </AsistenteProvider>
+      <AuthProvider>
+        <AsistenteProvider>
+          <Outlet />
+          <Toaster />
+        </AsistenteProvider>
+      </AuthProvider>
     </QueryClientProvider>
   );
 }

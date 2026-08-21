@@ -1,5 +1,4 @@
-// Estado global del prototipo. Persiste en Supabase cuando hay credenciales;
-// si falla la carga, sigue con los datos locales.
+// Estado global de Dilo. Persiste en Supabase con el usuario autenticado.
 
 import {
   createContext,
@@ -12,15 +11,9 @@ import {
   type ReactNode,
 } from "react";
 import { fechaLegible, horaAhora, interpretar, type Interpretacion } from "./asistente";
+import { useAuth } from "./auth";
 import {
-  AUTOMATIZACIONES_INICIALES,
-  EVENTOS_INICIALES,
-  HISTORIAL_INICIAL,
-  MEMORIA_INICIAL,
-  RECORDATORIOS_INICIALES,
-  TAREAS_INICIALES,
   hoyISO,
-  nombreUsuario,
   type Automatizacion,
   type CategoriaMemoria,
   type ConfiguracionUsuario,
@@ -31,6 +24,7 @@ import {
   type Recordatorio,
   type Tarea,
 } from "./datos";
+import { avisosPendientes, buscarUno } from "./motor";
 import {
   borrarAutomatizacion,
   borrarEvento,
@@ -51,11 +45,21 @@ import {
   type EstadoPersistencia,
 } from "./repositorio";
 import { supabaseConfigurado } from "./supabase";
+import { hablar } from "./voz";
 
 export type { ConfiguracionUsuario, MensajeChat };
 
+const MENSAJE_BIENVENIDA = (nombre: string): MensajeChat => ({
+  id: "msg-welcome",
+  autor: "asistente",
+  texto: `En línea, ${nombre}. Soy Dilo. Dime qué hacer: recordatorios, tareas, eventos, memoria o automatizaciones. Puedes hablarme.`,
+  tipo: "texto",
+  hora: "08:00",
+});
+
 interface Ctx {
   usuario: string;
+  usuarioId: string;
   mensajes: MensajeChat[];
   tareas: Tarea[];
   recordatorios: Recordatorio[];
@@ -88,59 +92,75 @@ interface Ctx {
 
 const AsistenteContext = createContext<Ctx | null>(null);
 
-const ETIQUETA_INTENCION: Record<string, string> = {
-  tarea: "Crear tarea",
-  recordatorio: "Crear recordatorio",
-  evento: "Agendar evento",
-  automatizacion: "Crear automatización",
-  memoria: "Guardar en memoria",
-  consulta: "Consultar información",
-  desconocida: "No identificada",
-};
-
 const CONFIG_INICIAL: ConfiguracionUsuario = {
   notificaciones: true,
   avisosRecordatorios: true,
   avisosAutomatizaciones: true,
   memoriaActiva: true,
-  preferenciaVoz: false,
+  preferenciaVoz: true,
 };
 
+async function interpretarSolicitud(texto: string): Promise<Interpretacion> {
+  try {
+    const res = await fetch("/api/interpretar", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ texto }),
+    });
+    if (res.ok) return (await res.json()) as Interpretacion;
+  } catch {
+    /* usa el motor local */
+  }
+  return interpretar(texto);
+}
+
 export function AsistenteProvider({ children }: { children: ReactNode }) {
-  const [mensajes, setMensajes] = useState<MensajeChat[]>([
-    {
-      id: "msg-welcome",
-      autor: "asistente",
-      texto: `¡Hola ${nombreUsuario}! Soy Dilo. Escríbeme o envíame una nota de voz: “Recuérdame mañana a las 8 enviar el informe”.`,
-      tipo: "texto",
-      hora: "08:00",
-    },
-  ]);
-  const [tareas, setTareas] = useState<Tarea[]>(TAREAS_INICIALES);
-  const [recordatorios, setRecordatorios] = useState<Recordatorio[]>(RECORDATORIOS_INICIALES);
-  const [eventos, setEventos] = useState<Evento[]>(EVENTOS_INICIALES);
-  const [memoria, setMemoria] = useState<MemoriaItem[]>(MEMORIA_INICIAL);
-  const [automatizaciones, setAutomatizaciones] =
-    useState<Automatizacion[]>(AUTOMATIZACIONES_INICIALES);
-  const [historial, setHistorial] = useState<HistorialItem[]>(HISTORIAL_INICIAL);
+  const { perfil, cargando: authCargando } = useAuth();
+  const usuarioId = perfil?.id ?? "";
+  const usuario = perfil?.nombre ?? "Usuario";
+
+  const [mensajes, setMensajes] = useState<MensajeChat[]>([MENSAJE_BIENVENIDA(usuario)]);
+  const [tareas, setTareas] = useState<Tarea[]>([]);
+  const [recordatorios, setRecordatorios] = useState<Recordatorio[]>([]);
+  const [eventos, setEventos] = useState<Evento[]>([]);
+  const [memoria, setMemoria] = useState<MemoriaItem[]>([]);
+  const [automatizaciones, setAutomatizaciones] = useState<Automatizacion[]>([]);
+  const [historial, setHistorial] = useState<HistorialItem[]>([]);
   const [configuracion, setConfiguracion] = useState<ConfiguracionUsuario>(CONFIG_INICIAL);
   const [persistencia, setPersistencia] = useState<EstadoPersistencia>(
     supabaseConfigurado ? "conectado" : "memoria",
   );
 
-  const snapshot = useRef({ tareas, recordatorios, eventos, automatizaciones, configuracion });
-  snapshot.current = { tareas, recordatorios, eventos, automatizaciones, configuracion };
+  const uidRef = useRef(usuarioId);
+  uidRef.current = usuarioId;
+  const snapshot = useRef({
+    tareas,
+    recordatorios,
+    eventos,
+    memoria,
+    automatizaciones,
+    configuracion,
+  });
+  snapshot.current = { tareas, recordatorios, eventos, memoria, automatizaciones, configuracion };
 
   useEffect(() => {
-    if (!supabaseConfigurado) return;
+    if (!supabaseConfigurado) {
+      setPersistencia("memoria");
+      return;
+    }
+    if (authCargando) return;
+    if (!usuarioId) return;
+
     let cancelado = false;
-    void cargarEstadoRemoto().then((remoto) => {
+    void cargarEstadoRemoto(usuarioId).then((remoto) => {
       if (cancelado) return;
       if (!remoto) {
         setPersistencia("error");
         return;
       }
-      if (remoto.mensajes.length > 0) setMensajes(remoto.mensajes);
+      setMensajes(
+        remoto.mensajes.length > 0 ? remoto.mensajes : [MENSAJE_BIENVENIDA(remoto.nombre)],
+      );
       setTareas(remoto.tareas);
       setRecordatorios(remoto.recordatorios);
       setEventos(remoto.eventos);
@@ -153,7 +173,10 @@ export function AsistenteProvider({ children }: { children: ReactNode }) {
     return () => {
       cancelado = true;
     };
-  }, []);
+  }, [authCargando, usuarioId]);
+
+  const cfgRef = useRef(configuracion);
+  cfgRef.current = configuracion;
 
   const registrar = useCallback(
     (solicitud: string, accion: string, estado: HistorialItem["estado"] = "exitoso") => {
@@ -166,7 +189,7 @@ export function AsistenteProvider({ children }: { children: ReactNode }) {
         estado,
       };
       setHistorial((p) => [item, ...p]);
-      void guardarHistorial(item);
+      void guardarHistorial(item, uidRef.current);
     },
     [],
   );
@@ -174,15 +197,278 @@ export function AsistenteProvider({ children }: { children: ReactNode }) {
   const push = useCallback((m: Omit<MensajeChat, "id" | "hora">) => {
     const item: MensajeChat = { ...m, id: nuevoId(), hora: horaAhora() };
     setMensajes((p) => [...p, item]);
-    void guardarMensaje(item);
+    void guardarMensaje(item, uidRef.current);
+    if (
+      item.autor === "asistente" &&
+      cfgRef.current.preferenciaVoz &&
+      (item.tipo === "texto" ||
+        item.tipo === "confirmacion" ||
+        item.tipo === "aclaracion" ||
+        item.tipo === "error")
+    ) {
+      hablar(item.texto);
+    }
   }, []);
+
+  useEffect(() => {
+    const tick = () => {
+      const { recordatorios: recs, automatizaciones: autos, configuracion: cfg } = snapshot.current;
+      if (!cfg.notificaciones) return;
+      const avisos = avisosPendientes(recs, autos);
+      if (avisos.length === 0) return;
+
+      for (const aviso of avisos) {
+        if (aviso.tipo === "recordatorio" && cfg.avisosRecordatorios) {
+          setRecordatorios((p) => {
+            const next = p.map((x) =>
+              x.id === aviso.id ? { ...x, estado: "completado" as const, activo: false } : x,
+            );
+            const item = next.find((x) => x.id === aviso.id);
+            if (item) void guardarRecordatorio(item, uidRef.current);
+            return next;
+          });
+          push({ autor: "asistente", texto: `🔔 ${aviso.texto}`, tipo: "confirmacion" });
+          registrar(aviso.texto, "Recordatorio ejecutado");
+        }
+        if (aviso.tipo === "automatizacion" && cfg.avisosAutomatizaciones) {
+          setAutomatizaciones((p) => {
+            const next = p.map((x) =>
+              x.id === aviso.id ? { ...x, ultimaEjecucion: hoyISO() } : x,
+            );
+            const item = next.find((x) => x.id === aviso.id);
+            if (item) void guardarAutomatizacion(item, uidRef.current);
+            return next;
+          });
+          push({ autor: "asistente", texto: `⚙️ ${aviso.texto}`, tipo: "confirmacion" });
+          registrar(aviso.texto, "Automatización ejecutada");
+        }
+      }
+    };
+
+    const id = window.setInterval(tick, 20_000);
+    tick();
+    return () => window.clearInterval(id);
+  }, [push, registrar]);
 
   const aplicarInterpretacion = useCallback(
     (texto: string, r: Interpretacion) => {
-      const { tareas: tNow, recordatorios: rNow, eventos: eNow, automatizaciones: aNow, configuracion: cfg } =
-        snapshot.current;
+      const {
+        tareas: tNow,
+        recordatorios: rNow,
+        eventos: eNow,
+        memoria: mNow,
+        automatizaciones: aNow,
+        configuracion: cfg,
+      } = snapshot.current;
+
+      const aclarar = (msg: string) => {
+        push({ autor: "asistente", texto: msg, tipo: "aclaracion" });
+        registrar(texto, "Se solicitó aclaración", "pendiente");
+      };
 
       switch (r.intencion) {
+        case "completar": {
+          const tareasHit = buscarUno(tNow, r.actividad, (t) => t.titulo);
+          const recHit = buscarUno(rNow, r.actividad, (x) => x.actividad);
+          const evHit = buscarUno(eNow, r.actividad, (e) => e.titulo);
+          if (r.entidad === "recordatorio" || (recHit.length === 1 && tareasHit.length === 0)) {
+            const item = recHit[0];
+            if (!item) {
+              aclarar("No encontré ese recordatorio. ¿Cuál quieres completar?");
+              break;
+            }
+            const next = { ...item, estado: "completado" as const, activo: false };
+            setRecordatorios((p) => p.map((x) => (x.id === item.id ? next : x)));
+            void guardarRecordatorio(next, uidRef.current);
+            push({
+              autor: "asistente",
+              texto: `✓ Recordatorio completado: “${item.actividad}”.`,
+              tipo: "confirmacion",
+            });
+            registrar(texto, "Recordatorio completado");
+            break;
+          }
+          if (r.entidad === "evento" || (evHit.length === 1 && tareasHit.length === 0)) {
+            const item = evHit[0];
+            if (!item) {
+              aclarar("No encontré ese evento. ¿Cuál quieres completar?");
+              break;
+            }
+            const next = { ...item, estado: "completado" as const };
+            setEventos((p) => p.map((x) => (x.id === item.id ? next : x)));
+            void guardarEvento(next, uidRef.current);
+            push({
+              autor: "asistente",
+              texto: `✓ Evento marcado como completado: “${item.titulo}”.`,
+              tipo: "confirmacion",
+            });
+            registrar(texto, "Evento completado");
+            break;
+          }
+          const item = tareasHit[0];
+          if (!item || tareasHit.length > 1) {
+            aclarar("No identifiqué qué tarea completar. Dime el título, por ejemplo “completa comprar materiales”.");
+            break;
+          }
+          const next = { ...item, estado: "completada" as const };
+          setTareas((p) => p.map((x) => (x.id === item.id ? next : x)));
+          void guardarTarea(next, uidRef.current);
+          push({
+            autor: "asistente",
+            texto: `✓ Tarea completada: “${item.titulo}”.`,
+            tipo: "confirmacion",
+          });
+          registrar(texto, "Tarea completada");
+          break;
+        }
+        case "eliminar": {
+          if (r.entidad === "memoria" || /memoria|recuerdo/i.test(texto)) {
+            const hits = buscarUno(mNow, r.actividad, (m) => m.informacion);
+            const item = hits[0];
+            if (!item) {
+              aclarar("No encontré ese recuerdo. ¿Cuál quieres olvidar?");
+              break;
+            }
+            setMemoria((p) => p.filter((x) => x.id !== item.id));
+            void borrarMemoria(item.id);
+            push({
+              autor: "asistente",
+              texto: `✓ Lo olvidé: “${item.informacion}”.`,
+              tipo: "confirmacion",
+            });
+            registrar(texto, "Memoria eliminada");
+            break;
+          }
+          if (r.entidad === "recordatorio") {
+            const hits = buscarUno(rNow, r.actividad, (x) => x.actividad);
+            const item = hits[0];
+            if (!item) {
+              aclarar("No encontré ese recordatorio.");
+              break;
+            }
+            setRecordatorios((p) => p.filter((x) => x.id !== item.id));
+            void borrarRecordatorio(item.id);
+            push({
+              autor: "asistente",
+              texto: `✓ Recordatorio eliminado: “${item.actividad}”.`,
+              tipo: "confirmacion",
+            });
+            registrar(texto, "Recordatorio eliminado");
+            break;
+          }
+          if (r.entidad === "evento") {
+            const hits = buscarUno(eNow, r.actividad, (e) => e.titulo);
+            const item = hits[0];
+            if (!item) {
+              aclarar("No encontré ese evento.");
+              break;
+            }
+            setEventos((p) => p.filter((x) => x.id !== item.id));
+            void borrarEvento(item.id);
+            push({
+              autor: "asistente",
+              texto: `✓ Evento eliminado: “${item.titulo}”.`,
+              tipo: "confirmacion",
+            });
+            registrar(texto, "Evento eliminado");
+            break;
+          }
+          if (r.entidad === "automatizacion") {
+            const hits = buscarUno(aNow, r.actividad, (a) => `${a.nombre} ${a.accion}`);
+            const item = hits[0];
+            if (!item) {
+              aclarar("No encontré esa automatización.");
+              break;
+            }
+            setAutomatizaciones((p) => p.filter((x) => x.id !== item.id));
+            void borrarAutomatizacion(item.id);
+            push({
+              autor: "asistente",
+              texto: `✓ Automatización eliminada: “${item.nombre}”.`,
+              tipo: "confirmacion",
+            });
+            registrar(texto, "Automatización eliminada");
+            break;
+          }
+          const hits = buscarUno(tNow, r.actividad, (t) => t.titulo);
+          const item = hits[0];
+          if (!item) {
+            aclarar("No encontré esa actividad. Indica si es una tarea, recordatorio o evento.");
+            break;
+          }
+          setTareas((p) => p.filter((x) => x.id !== item.id));
+          void borrarTarea(item.id);
+          push({
+            autor: "asistente",
+            texto: `✓ Tarea eliminada: “${item.titulo}”.`,
+            tipo: "confirmacion",
+          });
+          registrar(texto, "Tarea eliminada");
+          break;
+        }
+        case "modificar": {
+          const aplicarFechaHora = <T extends { fecha?: string | null; hora?: string }>(item: T): T => ({
+            ...item,
+            ...(r.fecha ? { fecha: r.fecha } : {}),
+            ...(r.hora ? { hora: r.hora } : {}),
+          });
+          if (!r.fecha && !r.hora) {
+            aclarar("¿Qué cambio hago? Indica la nueva fecha u hora.");
+            break;
+          }
+          if (r.entidad === "recordatorio") {
+            const hits = buscarUno(rNow, r.actividad, (x) => x.actividad);
+            const item = hits[0];
+            if (!item) {
+              aclarar("No encontré ese recordatorio.");
+              break;
+            }
+            const next = aplicarFechaHora(item);
+            setRecordatorios((p) => p.map((x) => (x.id === item.id ? next : x)));
+            void guardarRecordatorio(next, uidRef.current);
+            push({
+              autor: "asistente",
+              texto: `✓ Recordatorio actualizado: “${next.actividad}” el ${fechaLegible(next.fecha)} a las ${next.hora}.`,
+              tipo: "confirmacion",
+            });
+            registrar(texto, "Recordatorio modificado");
+            break;
+          }
+          if (r.entidad === "evento") {
+            const hits = buscarUno(eNow, r.actividad, (e) => `${e.titulo} ${e.persona ?? ""}`);
+            const item = hits[0];
+            if (!item) {
+              aclarar("No encontré ese evento.");
+              break;
+            }
+            const next = aplicarFechaHora(item);
+            setEventos((p) => p.map((x) => (x.id === item.id ? next : x)));
+            void guardarEvento(next, uidRef.current);
+            push({
+              autor: "asistente",
+              texto: `✓ Evento actualizado: “${next.titulo}” el ${fechaLegible(next.fecha)} a las ${next.hora}.`,
+              tipo: "confirmacion",
+            });
+            registrar(texto, "Evento modificado");
+            break;
+          }
+          const hits = buscarUno(tNow, r.actividad, (t) => t.titulo);
+          const item = hits[0];
+          if (!item) {
+            aclarar("No encontré esa tarea. Prueba con “cambia la reunión a las 16:00”.");
+            break;
+          }
+          const next = { ...item, fecha: r.fecha ?? item.fecha };
+          setTareas((p) => p.map((x) => (x.id === item.id ? next : x)));
+          void guardarTarea(next, uidRef.current);
+          push({
+            autor: "asistente",
+            texto: `✓ Tarea actualizada: “${next.titulo}”${next.fecha ? ` para el ${fechaLegible(next.fecha)}` : ""}.`,
+            tipo: "confirmacion",
+          });
+          registrar(texto, "Tarea modificada");
+          break;
+        }
         case "automatizacion": {
           const frecuencia = r.frecuencia ?? "Todos los días";
           const hora = r.hora ?? "08:00";
@@ -194,9 +480,10 @@ export function AsistenteProvider({ children }: { children: ReactNode }) {
             frecuencia,
             hora,
             activa: true,
+            ultimaEjecucion: null,
           };
           setAutomatizaciones((p) => [...p, auto]);
-          void guardarAutomatizacion(auto);
+          void guardarAutomatizacion(auto, uidRef.current);
           push({
             autor: "asistente",
             texto: `✓ Automatización creada: ${frecuencia} a las ${hora} — ${r.actividad}.`,
@@ -218,7 +505,7 @@ export function AsistenteProvider({ children }: { children: ReactNode }) {
           const categoria: CategoriaMemoria = r.persona ? "Personas" : "Preferencias";
           const item: MemoriaItem = { id: nuevoId(), informacion: r.actividad, categoria, fecha: hoyISO() };
           setMemoria((p) => [...p, item]);
-          void guardarMemoria(item);
+          void guardarMemoria(item, uidRef.current);
           push({
             autor: "asistente",
             texto: `✓ Guardado en tu memoria: “${r.actividad}”. Puedes eliminarlo cuando quieras.`,
@@ -248,7 +535,7 @@ export function AsistenteProvider({ children }: { children: ReactNode }) {
             estado: "pendiente",
           };
           setEventos((p) => [...p, evento]);
-          void guardarEvento(evento);
+          void guardarEvento(evento, uidRef.current);
           push({
             autor: "asistente",
             texto: `✓ Evento agendado: ${r.actividad}${r.persona ? ` con ${r.persona}` : ""}, el ${fechaLegible(r.fecha)} a las ${r.hora}.`,
@@ -276,7 +563,7 @@ export function AsistenteProvider({ children }: { children: ReactNode }) {
             activo: true,
           };
           setRecordatorios((p) => [...p, rec]);
-          void guardarRecordatorio(rec);
+          void guardarRecordatorio(rec, uidRef.current);
           push({
             autor: "asistente",
             texto: `✓ Recordatorio creado: te avisaré el ${fechaLegible(r.fecha)} a las ${r.hora} — ${r.actividad}.`,
@@ -288,10 +575,13 @@ export function AsistenteProvider({ children }: { children: ReactNode }) {
         case "consulta": {
           const hoy = hoyISO();
           const lineas = [
-            `Tareas pendientes: ${tNow.filter((t) => t.estado !== "completada").length}`,
-            `Recordatorios de hoy: ${rNow.filter((x) => x.fecha === hoy).length}`,
-            `Eventos próximos: ${eNow.filter((e) => e.fecha >= hoy).length}`,
+            `Tareas pendientes: ${tNow.filter((t) => t.estado !== "completada").map((t) => t.titulo).join(", ") || "ninguna"}`,
+            `Recordatorios de hoy: ${rNow.filter((x) => x.fecha === hoy && x.estado === "pendiente").map((x) => x.actividad).join(", ") || "ninguno"}`,
+            `Eventos próximos: ${eNow.filter((e) => e.fecha >= hoy).map((e) => e.titulo).join(", ") || "ninguno"}`,
             `Automatizaciones activas: ${aNow.filter((a) => a.activa).length}`,
+            cfg.memoriaActiva
+              ? `Memoria: ${mNow.slice(0, 3).map((m) => m.informacion).join("; ") || "vacía"}`
+              : "Memoria desactivada",
           ];
           push({
             autor: "asistente",
@@ -305,7 +595,7 @@ export function AsistenteProvider({ children }: { children: ReactNode }) {
           push({
             autor: "asistente",
             texto:
-              "No pude identificar qué necesitas. Intenta con “Recuérdame mañana a las 8 enviar el informe”.",
+              "No pude identificar qué necesitas. Intenta con “Recuérdame mañana a las 8 enviar el informe” o “completa comprar materiales”.",
             tipo: "error",
           });
           registrar(texto, "Mensaje no interpretado", "error");
@@ -322,7 +612,7 @@ export function AsistenteProvider({ children }: { children: ReactNode }) {
             origen: "chat",
           };
           setTareas((p) => [...p, tarea]);
-          void guardarTarea(tarea);
+          void guardarTarea(tarea, uidRef.current);
           push({
             autor: "asistente",
             texto: `✓ Tarea creada: “${r.actividad}”${r.fecha ? ` para el ${fechaLegible(r.fecha)}` : ""} (prioridad ${r.prioridad}).`,
@@ -337,84 +627,26 @@ export function AsistenteProvider({ children }: { children: ReactNode }) {
 
   const enviarMensaje = useCallback(
     (texto: string, tipo: "texto" | "voz") => {
-      const r: Interpretacion = interpretar(texto);
-      const correcto = r.intencion !== "desconocida" && !r.faltaInformacion;
-      const analisis = {
-        intencion: ETIQUETA_INTENCION[r.intencion] ?? "No identificada",
-        actividad: r.actividad || "—",
-        fecha: r.fecha ? fechaLegible(r.fecha) : "No especificada",
-        hora: r.hora ?? "No especificada",
-        estado: correcto
-          ? "Información identificada correctamente"
-          : r.intencion === "desconocida"
-            ? "No se identificó la intención"
-            : "Falta información para completar la acción",
-        correcto,
-      };
-
       push({
         autor: "usuario",
         texto,
         tipo,
-        transcripcion: tipo === "voz" ? texto : undefined,
+        ...(tipo === "voz" ? { transcripcion: texto } : {}),
       });
 
-      const mostrarAnalisis = () =>
-        push({
-          autor: "asistente",
-          texto: "Análisis de la solicitud",
-          tipo: "analisis",
-          analisis,
-        });
+      const continuar = (r: Interpretacion) => {
+        aplicarInterpretacion(texto, r);
+      };
 
-      if (tipo === "voz") {
-        setTimeout(() => {
-          push({
-            autor: "asistente",
-            texto: "🎤 Audio recibido",
-            tipo: "proceso",
-            etapaVoz: "recibida",
-          });
-        }, 280);
-        setTimeout(() => {
-          push({
-            autor: "asistente",
-            texto: "Transcribiendo…",
-            tipo: "proceso",
-            etapaVoz: "transcribiendo",
-          });
-        }, 700);
-        setTimeout(() => {
-          push({
-            autor: "asistente",
-            texto: `Texto identificado: “${texto.charAt(0).toUpperCase()}${texto.slice(1)}${texto.endsWith(".") ? "" : "."}”`,
-            tipo: "proceso",
-            etapaVoz: "transcrito",
-            transcripcion: texto,
-          });
-        }, 1300);
-        setTimeout(() => {
-          push({
-            autor: "asistente",
-            texto: "IA interpretando la solicitud…",
-            tipo: "proceso",
-            etapaVoz: "interpretando",
-          });
-        }, 1700);
-        setTimeout(mostrarAnalisis, 2100);
-        setTimeout(() => aplicarInterpretacion(texto, r), 2700);
-        return;
-      }
-
-      setTimeout(mostrarAnalisis, 400);
-      setTimeout(() => aplicarInterpretacion(texto, r), 1100);
+      void interpretarSolicitud(texto).then(continuar);
     },
     [push, aplicarInterpretacion],
   );
 
   const valor = useMemo<Ctx>(
     () => ({
-      usuario: nombreUsuario,
+      usuario,
+      usuarioId,
       mensajes,
       tareas,
       recordatorios,
@@ -428,14 +660,14 @@ export function AsistenteProvider({ children }: { children: ReactNode }) {
       agregarTarea: (t) => {
         const item = { ...t, id: nuevoId() };
         setTareas((p) => [item, ...p]);
-        void guardarTarea(item);
+        void guardarTarea(item, uidRef.current);
         registrar(t.titulo, "Tarea creada desde el panel");
       },
       actualizarTarea: (id, c) =>
         setTareas((p) => {
           const next = p.map((x) => (x.id === id ? { ...x, ...c } : x));
           const item = next.find((x) => x.id === id);
-          if (item) void guardarTarea(item);
+          if (item) void guardarTarea(item, uidRef.current);
           return next;
         }),
       eliminarTarea: (id) => {
@@ -445,14 +677,14 @@ export function AsistenteProvider({ children }: { children: ReactNode }) {
       agregarRecordatorio: (r) => {
         const item = { ...r, id: nuevoId() };
         setRecordatorios((p) => [item, ...p]);
-        void guardarRecordatorio(item);
+        void guardarRecordatorio(item, uidRef.current);
         registrar(r.actividad, "Recordatorio creado desde el panel");
       },
       actualizarRecordatorio: (id, c) =>
         setRecordatorios((p) => {
           const next = p.map((x) => (x.id === id ? { ...x, ...c } : x));
           const item = next.find((x) => x.id === id);
-          if (item) void guardarRecordatorio(item);
+          if (item) void guardarRecordatorio(item, uidRef.current);
           return next;
         }),
       eliminarRecordatorio: (id) => {
@@ -462,14 +694,14 @@ export function AsistenteProvider({ children }: { children: ReactNode }) {
       agregarEvento: (e) => {
         const item = { ...e, id: nuevoId() };
         setEventos((p) => [item, ...p]);
-        void guardarEvento(item);
+        void guardarEvento(item, uidRef.current);
         registrar(e.titulo, "Evento creado desde el panel");
       },
       actualizarEvento: (id, c) =>
         setEventos((p) => {
           const next = p.map((x) => (x.id === id ? { ...x, ...c } : x));
           const item = next.find((x) => x.id === id);
-          if (item) void guardarEvento(item);
+          if (item) void guardarEvento(item, uidRef.current);
           return next;
         }),
       eliminarEvento: (id) => {
@@ -479,14 +711,14 @@ export function AsistenteProvider({ children }: { children: ReactNode }) {
       agregarMemoria: (m) => {
         const item = { ...m, id: nuevoId() };
         setMemoria((p) => [item, ...p]);
-        void guardarMemoria(item);
+        void guardarMemoria(item, uidRef.current);
         registrar(m.informacion, "Memoria guardada");
       },
       actualizarMemoria: (id, c) =>
         setMemoria((p) => {
           const next = p.map((x) => (x.id === id ? { ...x, ...c } : x));
           const item = next.find((x) => x.id === id);
-          if (item) void guardarMemoria(item);
+          if (item) void guardarMemoria(item, uidRef.current);
           return next;
         }),
       eliminarMemoria: (id) => {
@@ -495,20 +727,20 @@ export function AsistenteProvider({ children }: { children: ReactNode }) {
       },
       limpiarMemoria: () => {
         setMemoria([]);
-        void vaciarMemoria();
+        void vaciarMemoria(uidRef.current);
         registrar("Eliminar toda la memoria", "Memoria eliminada por el usuario");
       },
       agregarAutomatizacion: (a) => {
-        const item = { ...a, id: nuevoId() };
+        const item = { ...a, id: nuevoId(), ultimaEjecucion: a.ultimaEjecucion ?? null };
         setAutomatizaciones((p) => [item, ...p]);
-        void guardarAutomatizacion(item);
+        void guardarAutomatizacion(item, uidRef.current);
         registrar(a.nombre, "Automatización creada desde el panel");
       },
       actualizarAutomatizacion: (id, c) =>
         setAutomatizaciones((p) => {
           const next = p.map((x) => (x.id === id ? { ...x, ...c } : x));
           const item = next.find((x) => x.id === id);
-          if (item) void guardarAutomatizacion(item);
+          if (item) void guardarAutomatizacion(item, uidRef.current);
           return next;
         }),
       eliminarAutomatizacion: (id) => {
@@ -518,12 +750,14 @@ export function AsistenteProvider({ children }: { children: ReactNode }) {
       actualizarConfiguracion: (c) =>
         setConfiguracion((p) => {
           const next = { ...p, ...c };
-          void guardarConfiguracion(next);
+          void guardarConfiguracion(next, uidRef.current);
           return next;
         }),
       registrar,
     }),
     [
+      usuario,
+      usuarioId,
       persistencia,
       mensajes,
       tareas,
