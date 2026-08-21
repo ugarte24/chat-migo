@@ -115,7 +115,6 @@ async function sintetizarElevenLabs(texto: string): Promise<ArrayBuffer | null> 
     body: JSON.stringify({
       text: texto.slice(0, 4000),
       model_id: "eleven_multilingual_v2",
-      language_code: "es",
     }),
   });
   if (!respuesta.ok) return null;

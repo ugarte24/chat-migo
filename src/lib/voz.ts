@@ -1,4 +1,20 @@
 let audioActual: HTMLAudioElement | null = null;
+let audioDesbloqueado = false;
+
+export async function desbloquearAudio() {
+  if (audioDesbloqueado || typeof Audio === "undefined") return;
+  try {
+    const silencio = new Audio(
+      "data:audio/wav;base64,UklGRigAAABXQVZFZm10IBIAAAABAAEARKwAAIhYAQACABAAAABkYXRhAgAAAAEA",
+    );
+    silencio.volume = 0.01;
+    await silencio.play();
+    silencio.pause();
+    audioDesbloqueado = true;
+  } catch {
+    /* el navegador aún bloquea autoplay */
+  }
+}
 
 export function reconocimientoVozDisponible() {
   if (typeof window === "undefined") return false;
@@ -62,8 +78,8 @@ function mimeGrabacion() {
   return tipos.find((t) => typeof MediaRecorder !== "undefined" && MediaRecorder.isTypeSupported(t)) ?? "";
 }
 
-/** Graba hasta que llamas a detener(). Devuelve el audio. */
-export async function iniciarGrabacion(): Promise<{ detener: () => Promise<Blob> }> {
+/** Graba hasta que llamas a detener(), o hasta un silencio tras oírte. */
+export async function iniciarGrabacion(alCortar?: () => void): Promise<{ detener: () => Promise<Blob> }> {
   const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
   const mime = mimeGrabacion();
   const rec = mime ? new MediaRecorder(stream, { mimeType: mime }) : new MediaRecorder(stream);
@@ -72,9 +88,56 @@ export async function iniciarGrabacion(): Promise<{ detener: () => Promise<Blob>
     if (e.data.size > 0) trozos.push(e.data);
   };
   rec.start(250);
+
+  const AudioCtx = window.AudioContext || (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+  let audioCtx: AudioContext | null = null;
+  let cerrado = false;
+  const inicio = Date.now();
+  let huboVoz = false;
+  let ultimoSonido = Date.now();
+
+  if (AudioCtx) {
+    audioCtx = new AudioCtx();
+    const fuente = audioCtx.createMediaStreamSource(stream);
+    const analizador = audioCtx.createAnalyser();
+    analizador.fftSize = 2048;
+    fuente.connect(analizador);
+    const datos = new Uint8Array(analizador.fftSize);
+
+    const tick = () => {
+      if (cerrado) return;
+      analizador.getByteTimeDomainData(datos);
+      let suma = 0;
+      for (let i = 0; i < datos.length; i++) {
+        const v = (datos[i]! - 128) / 128;
+        suma += v * v;
+      }
+      const rms = Math.sqrt(suma / datos.length);
+      if (rms > 0.04) {
+        huboVoz = true;
+        ultimoSonido = Date.now();
+      }
+      const ahora = Date.now();
+      if (huboVoz && ahora - ultimoSonido > 1100 && ahora - inicio > 700) {
+        cerrado = true;
+        alCortar?.();
+        return;
+      }
+      if (!huboVoz && ahora - inicio > 14000) {
+        cerrado = true;
+        alCortar?.();
+        return;
+      }
+      requestAnimationFrame(tick);
+    };
+    requestAnimationFrame(tick);
+  }
+
   return {
     detener: () =>
       new Promise((resolve, reject) => {
+        cerrado = true;
+        void audioCtx?.close().catch(() => undefined);
         rec.onstop = () => {
           stream.getTracks().forEach((t) => t.stop());
           if (trozos.length === 0) {

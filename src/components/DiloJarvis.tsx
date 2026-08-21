@@ -10,6 +10,7 @@ import {
   silenciar,
   transcribirAudio,
   transcribirEnNavegador,
+  desbloquearAudio,
 } from "@/lib/voz";
 
 const ESTADO_TEXTO: Record<EstadoOrbe, string> = {
@@ -26,77 +27,98 @@ export function Dilo() {
   const navigate = useNavigate();
   const [texto, setTexto] = useState("");
   const [grabando, setGrabando] = useState(false);
+  const [transcribiendo, setTranscribiendo] = useState(false);
   const [hablando, setHablando] = useState(false);
+  const [aviso, setAviso] = useState<string | null>(null);
   const detenerRef = useRef<(() => Promise<Blob>) | null>(null);
+  const cortandoRef = useRef(false);
   const hayMic = microfonoDisponible();
 
   const visibles = mensajes.filter((m) => m.tipo !== "proceso" && m.tipo !== "analisis");
   const ultimoAsistente = [...visibles].reverse().find((m) => m.autor === "asistente");
-  const ultimoUsuario = [...visibles].reverse().find((m) => m.autor === "usuario");
 
   useEffect(() => {
-    if (pensando || grabando || !ultimoAsistente || ultimoAsistente.id === "msg-welcome") {
+    if (pensando || grabando || transcribiendo || !ultimoAsistente || ultimoAsistente.id === "msg-welcome") {
       setHablando(false);
       return;
     }
     setHablando(true);
     const id = window.setTimeout(() => setHablando(false), 7000);
     return () => window.clearTimeout(id);
-  }, [grabando, pensando, ultimoAsistente?.id]);
+  }, [grabando, pensando, transcribiendo, ultimoAsistente?.id]);
 
   const estado: EstadoOrbe = grabando
     ? "escuchando"
-    : pensando
+    : transcribiendo || pensando
       ? "pensando"
       : hablando
         ? "hablando"
         : "espera";
 
   const pie = useMemo(() => {
-    if (grabando) return ultimoUsuario?.texto ?? "Pulsa otra vez el orbe para enviar.";
-    if (pensando) return "Un momento…";
-    return ultimoAsistente?.texto ?? "Pulsa el orbe o el micrófono para hablar.";
-  }, [grabando, pensando, ultimoAsistente?.texto, ultimoUsuario?.texto]);
+    if (aviso) return aviso;
+    if (grabando) return "Te escucho. Habla ahora; cuando pares, te respondo.";
+    if (transcribiendo) return "Entendiendo lo que dijiste…";
+    if (pensando) return "Pensando…";
+    if (hablando && ultimoAsistente && ultimoAsistente.id !== "msg-welcome") return ultimoAsistente.texto;
+    if (ultimoAsistente && ultimoAsistente.id !== "msg-welcome") return ultimoAsistente.texto;
+    return "Pulsa el orbe o el micrófono y habla. Dilo te responde al callarte.";
+  }, [aviso, grabando, hablando, pensando, transcribiendo, ultimoAsistente]);
 
   const enviar = (valor: string, tipo: "texto" | "voz" = "texto") => {
     const limpio = valor.trim();
-    if (!limpio || pensando) return;
+    if (!limpio || pensando || transcribiendo) return;
+    setAviso(null);
     enviarMensaje(limpio, tipo);
     setTexto("");
   };
 
+  const terminarGrabacion = async () => {
+    if (cortandoRef.current) return;
+    cortandoRef.current = true;
+    const detener = detenerRef.current;
+    detenerRef.current = null;
+    setGrabando(false);
+    if (!detener) {
+      cortandoRef.current = false;
+      return;
+    }
+    setTranscribiendo(true);
+    setAviso(null);
+    try {
+      const blob = await detener();
+      const transcrito =
+        (await transcribirAudio(blob)) || (await transcribirEnNavegador().catch(() => ""));
+      if (transcrito) enviar(transcrito, "voz");
+      else setAviso("No te entendí. Pulsa el orbe y habla más cerca, o escribe abajo.");
+    } catch {
+      setAviso("No pude usar el micrófono. Permite el acceso o escribe abajo.");
+    } finally {
+      setTranscribiendo(false);
+      cortandoRef.current = false;
+    }
+  };
+
   const pulsarOrbe = async () => {
-    if (pensando) return;
+    if (pensando || transcribiendo) return;
     if (grabando) {
-      const detener = detenerRef.current;
-      detenerRef.current = null;
-      setGrabando(false);
-      if (!detener) return;
-      try {
-        const blob = await detener();
-        const transcrito =
-          (await transcribirAudio(blob)) || (await transcribirEnNavegador().catch(() => ""));
-        if (transcrito) enviar(transcrito, "voz");
-      } catch {
-        /* sin audio */
-      }
+      await terminarGrabacion();
       return;
     }
 
     silenciar();
     setHablando(false);
+    setAviso(null);
+    await desbloquearAudio();
     try {
-      const sesion = await iniciarGrabacion();
+      const sesion = await iniciarGrabacion(() => {
+        void terminarGrabacion();
+      });
       detenerRef.current = sesion.detener;
+      cortandoRef.current = false;
       setGrabando(true);
     } catch {
-      if (!hayMic) return;
-      try {
-        const transcrito = await transcribirEnNavegador();
-        if (transcrito) enviar(transcrito, "voz");
-      } catch {
-        /* sin micrófono */
-      }
+      setAviso("Necesito permiso del micrófono. Ábrelo en el navegador y pulsa otra vez.");
     }
   };
 
@@ -170,7 +192,7 @@ export function Dilo() {
             onChange={(e) => setTexto(e.target.value)}
             placeholder="Pregúntale a Dilo"
             aria-label="Escribirle a Dilo"
-            disabled={pensando || grabando}
+            disabled={pensando || grabando || transcribiendo}
             className="h-12 flex-1 border-0 bg-transparent px-4 text-[16px] text-[#202124] outline-none placeholder:text-[#80868b]"
           />
           <button
@@ -181,7 +203,9 @@ export function Dilo() {
             className={
               grabando
                 ? "inline-flex size-12 shrink-0 items-center justify-center rounded-full bg-[#ea4335] text-white"
-                : "inline-flex size-12 shrink-0 items-center justify-center rounded-full bg-[#1a73e8] text-white hover:bg-[#1557b0]"
+                : transcribiendo || pensando
+                  ? "inline-flex size-12 shrink-0 items-center justify-center rounded-full bg-[#fbbc05] text-[#202124]"
+                  : "inline-flex size-12 shrink-0 items-center justify-center rounded-full bg-[#1a73e8] text-white hover:bg-[#1557b0]"
             }
           >
             <Mic className="size-5" />
