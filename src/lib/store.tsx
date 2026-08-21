@@ -24,6 +24,7 @@ import {
   type Recordatorio,
   type Tarea,
 } from "./datos";
+import type { AccionDilo, ContextoDilo, MensajeDilo, TurnoDilo } from "./dilo";
 import { avisosPendientes, buscarUno } from "./motor";
 import {
   borrarAutomatizacion,
@@ -52,7 +53,7 @@ export type { ConfiguracionUsuario, MensajeChat };
 const MENSAJE_BIENVENIDA = (nombre: string): MensajeChat => ({
   id: "msg-welcome",
   autor: "asistente",
-  texto: `En línea, ${nombre}. Soy Dilo. Dime qué hacer: recordatorios, tareas, eventos, memoria o automatizaciones. Puedes hablarme.`,
+  texto: `Hola, ${nombre}. Soy Dilo. Dime qué hacer.`,
   tipo: "texto",
   hora: "08:00",
 });
@@ -68,6 +69,7 @@ interface Ctx {
   automatizaciones: Automatizacion[];
   historial: HistorialItem[];
   configuracion: ConfiguracionUsuario;
+  pensando: boolean;
   enviarMensaje: (texto: string, tipo: "texto" | "voz") => void;
   agregarTarea: (t: Omit<Tarea, "id">) => void;
   actualizarTarea: (id: string, cambios: Partial<Tarea>) => void;
@@ -114,6 +116,24 @@ async function interpretarSolicitud(texto: string): Promise<Interpretacion> {
   return interpretar(texto);
 }
 
+async function pedirTurnoDilo(
+  mensaje: string,
+  historial: MensajeDilo[],
+  contexto: ContextoDilo,
+): Promise<TurnoDilo | null> {
+  try {
+    const res = await fetch("/api/dilo", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ mensaje, historial, contexto }),
+    });
+    if (!res.ok) return null;
+    return (await res.json()) as TurnoDilo;
+  } catch {
+    return null;
+  }
+}
+
 export function AsistenteProvider({ children }: { children: ReactNode }) {
   const { perfil, cargando: authCargando } = useAuth();
   const usuarioId = perfil?.id ?? "";
@@ -127,6 +147,7 @@ export function AsistenteProvider({ children }: { children: ReactNode }) {
   const [automatizaciones, setAutomatizaciones] = useState<Automatizacion[]>([]);
   const [historial, setHistorial] = useState<HistorialItem[]>([]);
   const [configuracion, setConfiguracion] = useState<ConfiguracionUsuario>(CONFIG_INICIAL);
+  const [pensando, setPensando] = useState(false);
   const [persistencia, setPersistencia] = useState<EstadoPersistencia>(
     supabaseConfigurado ? "conectado" : "memoria",
   );
@@ -142,6 +163,9 @@ export function AsistenteProvider({ children }: { children: ReactNode }) {
     configuracion,
   });
   snapshot.current = { tareas, recordatorios, eventos, memoria, automatizaciones, configuracion };
+
+  const mensajesRef = useRef(mensajes);
+  mensajesRef.current = mensajes;
 
   useEffect(() => {
     if (!supabaseConfigurado) {
@@ -249,6 +273,196 @@ export function AsistenteProvider({ children }: { children: ReactNode }) {
     tick();
     return () => window.clearInterval(id);
   }, [push, registrar]);
+
+  const aplicarAcciones = useCallback(
+    (acciones: AccionDilo[], solicitud: string) => {
+      for (const accion of acciones) {
+        const {
+          tareas: tNow,
+          recordatorios: rNow,
+          eventos: eNow,
+          memoria: mNow,
+          automatizaciones: aNow,
+          configuracion: cfg,
+        } = snapshot.current;
+
+        if (accion.tipo === "crear_tarea") {
+          const tarea: Tarea = {
+            id: nuevoId(),
+            titulo: accion.titulo,
+            descripcion: "Creada por Dilo.",
+            fecha: accion.fecha,
+            prioridad: accion.prioridad,
+            estado: "pendiente",
+            origen: "chat",
+          };
+          setTareas((p) => [...p, tarea]);
+          void guardarTarea(tarea, uidRef.current);
+          registrar(solicitud, "Tarea creada");
+          continue;
+        }
+        if (accion.tipo === "crear_recordatorio") {
+          const rec: Recordatorio = {
+            id: nuevoId(),
+            actividad: accion.actividad,
+            fecha: accion.fecha,
+            hora: accion.hora,
+            estado: "pendiente",
+            activo: true,
+          };
+          setRecordatorios((p) => [...p, rec]);
+          void guardarRecordatorio(rec, uidRef.current);
+          registrar(solicitud, "Recordatorio creado");
+          continue;
+        }
+        if (accion.tipo === "crear_evento") {
+          const evento: Evento = {
+            id: nuevoId(),
+            titulo: accion.titulo,
+            descripcion: "Creado por Dilo.",
+            persona: accion.persona,
+            lugar: "Por definir",
+            fecha: accion.fecha,
+            hora: accion.hora,
+            estado: "pendiente",
+          };
+          setEventos((p) => [...p, evento]);
+          void guardarEvento(evento, uidRef.current);
+          registrar(solicitud, "Evento agendado");
+          continue;
+        }
+        if (accion.tipo === "guardar_memoria") {
+          if (!cfg.memoriaActiva) continue;
+          const categoria = (accion.categoria as CategoriaMemoria) || "Información personalizada";
+          const item: MemoriaItem = {
+            id: nuevoId(),
+            informacion: accion.informacion,
+            categoria,
+            fecha: hoyISO(),
+          };
+          setMemoria((p) => [...p, item]);
+          void guardarMemoria(item, uidRef.current);
+          registrar(solicitud, "Información guardada en memoria");
+          continue;
+        }
+        if (accion.tipo === "crear_automatizacion") {
+          const auto: Automatizacion = {
+            id: nuevoId(),
+            nombre: accion.accion,
+            accion: accion.accion,
+            cuando: accion.frecuencia.replace(/^Todos los /i, ""),
+            frecuencia: accion.frecuencia,
+            hora: accion.hora,
+            activa: true,
+            ultimaEjecucion: null,
+          };
+          setAutomatizaciones((p) => [...p, auto]);
+          void guardarAutomatizacion(auto, uidRef.current);
+          registrar(solicitud, "Automatización creada");
+          continue;
+        }
+        if (accion.tipo === "completar") {
+          if (accion.entidad === "recordatorio") {
+            const item = buscarUno(rNow, accion.consulta, (x) => x.actividad)[0];
+            if (!item) continue;
+            const next = { ...item, estado: "completado" as const, activo: false };
+            setRecordatorios((p) => p.map((x) => (x.id === item.id ? next : x)));
+            void guardarRecordatorio(next, uidRef.current);
+            registrar(solicitud, "Recordatorio completado");
+            continue;
+          }
+          if (accion.entidad === "evento") {
+            const item = buscarUno(eNow, accion.consulta, (x) => x.titulo)[0];
+            if (!item) continue;
+            const next = { ...item, estado: "completado" as const };
+            setEventos((p) => p.map((x) => (x.id === item.id ? next : x)));
+            void guardarEvento(next, uidRef.current);
+            registrar(solicitud, "Evento completado");
+            continue;
+          }
+          const item = buscarUno(tNow, accion.consulta, (t) => t.titulo)[0];
+          if (!item) continue;
+          const next = { ...item, estado: "completada" as const };
+          setTareas((p) => p.map((x) => (x.id === item.id ? next : x)));
+          void guardarTarea(next, uidRef.current);
+          registrar(solicitud, "Tarea completada");
+          continue;
+        }
+        if (accion.tipo === "eliminar") {
+          if (accion.entidad === "memoria") {
+            const item = buscarUno(mNow, accion.consulta, (m) => m.informacion)[0];
+            if (!item) continue;
+            setMemoria((p) => p.filter((x) => x.id !== item.id));
+            void borrarMemoria(item.id);
+            registrar(solicitud, "Memoria eliminada");
+            continue;
+          }
+          if (accion.entidad === "recordatorio") {
+            const item = buscarUno(rNow, accion.consulta, (x) => x.actividad)[0];
+            if (!item) continue;
+            setRecordatorios((p) => p.filter((x) => x.id !== item.id));
+            void borrarRecordatorio(item.id);
+            registrar(solicitud, "Recordatorio eliminado");
+            continue;
+          }
+          if (accion.entidad === "evento") {
+            const item = buscarUno(eNow, accion.consulta, (e) => e.titulo)[0];
+            if (!item) continue;
+            setEventos((p) => p.filter((x) => x.id !== item.id));
+            void borrarEvento(item.id);
+            registrar(solicitud, "Evento eliminado");
+            continue;
+          }
+          if (accion.entidad === "automatizacion") {
+            const item = buscarUno(aNow, accion.consulta, (a) => `${a.nombre} ${a.accion}`)[0];
+            if (!item) continue;
+            setAutomatizaciones((p) => p.filter((x) => x.id !== item.id));
+            void borrarAutomatizacion(item.id);
+            registrar(solicitud, "Automatización eliminada");
+            continue;
+          }
+          const item = buscarUno(tNow, accion.consulta, (t) => t.titulo)[0];
+          if (!item) continue;
+          setTareas((p) => p.filter((x) => x.id !== item.id));
+          void borrarTarea(item.id);
+          registrar(solicitud, "Tarea eliminada");
+          continue;
+        }
+        if (accion.tipo === "modificar") {
+          const aplicar = <T extends { fecha?: string | null; hora?: string }>(item: T): T => ({
+            ...item,
+            ...(accion.fecha ? { fecha: accion.fecha } : {}),
+            ...(accion.hora ? { hora: accion.hora } : {}),
+          });
+          if (accion.entidad === "recordatorio") {
+            const item = buscarUno(rNow, accion.consulta, (x) => x.actividad)[0];
+            if (!item) continue;
+            const next = aplicar(item);
+            setRecordatorios((p) => p.map((x) => (x.id === item.id ? next : x)));
+            void guardarRecordatorio(next, uidRef.current);
+            registrar(solicitud, "Recordatorio modificado");
+            continue;
+          }
+          if (accion.entidad === "evento") {
+            const item = buscarUno(eNow, accion.consulta, (e) => `${e.titulo} ${e.persona ?? ""}`)[0];
+            if (!item) continue;
+            const next = aplicar(item);
+            setEventos((p) => p.map((x) => (x.id === item.id ? next : x)));
+            void guardarEvento(next, uidRef.current);
+            registrar(solicitud, "Evento modificado");
+            continue;
+          }
+          const item = buscarUno(tNow, accion.consulta, (t) => t.titulo)[0];
+          if (!item) continue;
+          const next = { ...item, fecha: accion.fecha ?? item.fecha };
+          setTareas((p) => p.map((x) => (x.id === item.id ? next : x)));
+          void guardarTarea(next, uidRef.current);
+          registrar(solicitud, "Tarea modificada");
+        }
+      }
+    },
+    [registrar],
+  );
 
   const aplicarInterpretacion = useCallback(
     (texto: string, r: Interpretacion) => {
@@ -633,14 +847,73 @@ export function AsistenteProvider({ children }: { children: ReactNode }) {
         tipo,
         ...(tipo === "voz" ? { transcripcion: texto } : {}),
       });
+      setPensando(true);
 
-      const continuar = (r: Interpretacion) => {
-        aplicarInterpretacion(texto, r);
-      };
+      void (async () => {
+        const snap = snapshot.current;
+        const contexto: ContextoDilo = {
+          nombre: usuario,
+          hoy: hoyISO(),
+          hora: horaAhora(),
+          memoriaActiva: snap.configuracion.memoriaActiva,
+          tareas: snap.tareas.map((t) => ({
+            id: t.id,
+            titulo: t.titulo,
+            fecha: t.fecha,
+            prioridad: t.prioridad,
+            estado: t.estado,
+          })),
+          recordatorios: snap.recordatorios.map((r) => ({
+            id: r.id,
+            actividad: r.actividad,
+            fecha: r.fecha,
+            hora: r.hora,
+            estado: r.estado,
+          })),
+          eventos: snap.eventos.map((e) => ({
+            id: e.id,
+            titulo: e.titulo,
+            persona: e.persona,
+            fecha: e.fecha,
+            hora: e.hora,
+            estado: e.estado,
+          })),
+          memoria: snap.memoria.map((m) => ({
+            id: m.id,
+            informacion: m.informacion,
+            categoria: m.categoria,
+          })),
+          automatizaciones: snap.automatizaciones.map((a) => ({
+            id: a.id,
+            nombre: a.nombre,
+            frecuencia: a.frecuencia,
+            hora: a.hora,
+            activa: a.activa,
+          })),
+        };
+        const historial: MensajeDilo[] = mensajesRef.current
+          .filter((m) => m.tipo !== "proceso" && m.tipo !== "analisis")
+          .slice(-12)
+          .map((m) => ({
+            role: m.autor === "usuario" ? "user" : "assistant",
+            content: m.texto,
+          }));
 
-      void interpretarSolicitud(texto).then(continuar);
+        const turno = await pedirTurnoDilo(texto, historial, contexto);
+        if (turno?.texto || (turno && turno.acciones.length > 0)) {
+          aplicarAcciones(turno.acciones, texto);
+          push({
+            autor: "asistente",
+            texto: turno.texto || "Listo.",
+            tipo: turno.acciones.length > 0 ? "confirmacion" : "texto",
+          });
+        } else {
+          aplicarInterpretacion(texto, await interpretarSolicitud(texto));
+        }
+        setPensando(false);
+      })();
     },
-    [push, aplicarInterpretacion],
+    [aplicarAcciones, aplicarInterpretacion, push, usuario],
   );
 
   const valor = useMemo<Ctx>(
@@ -656,6 +929,7 @@ export function AsistenteProvider({ children }: { children: ReactNode }) {
       historial,
       configuracion,
       persistencia,
+      pensando,
       enviarMensaje,
       agregarTarea: (t) => {
         const item = { ...t, id: nuevoId() };
@@ -769,6 +1043,7 @@ export function AsistenteProvider({ children }: { children: ReactNode }) {
       configuracion,
       enviarMensaje,
       registrar,
+      pensando,
     ],
   );
 

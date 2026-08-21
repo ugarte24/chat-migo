@@ -62,7 +62,8 @@ export async function interpretarConIa(texto: string): Promise<Interpretacion> {
 export async function transcribirWhisper(audio: ArrayBuffer, mime = "audio/webm"): Promise<string | null> {
   const clave = claveOpenAi();
   if (!clave) return null;
-  const archivo = new File([audio], "nota.webm", { type: mime });
+  const ext = mime.includes("mp4") || mime.includes("m4a") ? "m4a" : mime.includes("mpeg") ? "mp3" : "webm";
+  const archivo = new File([audio], `nota.${ext}`, { type: mime || "audio/webm" });
   const cuerpo = new FormData();
   cuerpo.append("file", archivo);
   cuerpo.append("model", "whisper-1");
@@ -75,4 +76,48 @@ export async function transcribirWhisper(audio: ArrayBuffer, mime = "audio/webm"
   if (!respuesta.ok) return null;
   const json = (await respuesta.json()) as { text?: string };
   return json.text?.trim() || null;
+}
+
+/** Voz de Dilo: ElevenLabs (ID de voz copiado). Si falta la clave, no habla por API. */
+export async function sintetizarVoz(texto: string): Promise<ArrayBuffer | null> {
+  const limpio = texto.replace(/[#*_`]/g, "").trim();
+  if (!limpio) return null;
+  return sintetizarElevenLabs(limpio);
+}
+
+function envServidor(clave: string) {
+  if (typeof process === "undefined" || process.env == null) return "";
+  return process.env[clave]?.trim() ?? "";
+}
+
+/** Charlotte (conversacional, multilingual). Cámbiala en ELEVENLABS_VOICE_ID. */
+export const VOZ_ELEVENLABS_ID = "XB0fDUnXU5powFXDhCwa";
+
+export function vozElevenLabsId() {
+  return envServidor("ELEVENLABS_VOICE_ID") || VOZ_ELEVENLABS_ID;
+}
+
+export function elevenLabsConfigurado() {
+  return envServidor("ELEVENLABS_API_KEY").length > 10;
+}
+
+async function sintetizarElevenLabs(texto: string): Promise<ArrayBuffer | null> {
+  const clave = envServidor("ELEVENLABS_API_KEY");
+  if (clave.length < 10) return null;
+  const voz = vozElevenLabsId();
+  const respuesta = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${voz}`, {
+    method: "POST",
+    headers: {
+      "xi-api-key": clave,
+      Accept: "audio/mpeg",
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      text: texto.slice(0, 4000),
+      model_id: "eleven_multilingual_v2",
+      language_code: "es",
+    }),
+  });
+  if (!respuesta.ok) return null;
+  return respuesta.arrayBuffer();
 }

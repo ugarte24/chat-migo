@@ -269,3 +269,80 @@ html {
   scroll-behavior: smooth;
   scroll-padding-top: 5.5rem;
 }
+
+/* Orbe Dilo: paleta Google (azul, rojo, amarillo, verde), no una perla iridiscente. */
+.dilo-orbe {
+  width: 54%;
+  height: 54%;
+  border-radius: 50%;
+  background:
+    radial-gradient(circle at 28% 30%, #ffffff 0 18%, transparent 42%),
+    radial-gradient(circle at 32% 28%, #4285f4 0 34%, transparent 58%),
+    radial-gradient(circle at 78% 30%, #ea4335 0 32%, transparent 56%),
+    radial-gradient(circle at 28% 78%, #fbbc05 0 34%, transparent 58%),
+    radial-gradient(circle at 74% 76%, #34a853 0 36%, transparent 60%);
+  box-shadow:
+    0 1px 2px rgb(60 64 67 / 0.15),
+    0 24px 48px -20px rgb(66 133 244 / 0.45);
+  animation: dilo-orbe-morph 11s ease-in-out infinite;
+  filter: saturate(1.05);
+}
+
+.dilo-orbe-brillo {
+  position: absolute;
+  inset: 12%;
+  border-radius: 50%;
+  background: conic-gradient(
+    from 40deg,
+    rgb(66 133 244 / 0.35),
+    rgb(234 67 53 / 0.28),
+    rgb(251 188 5 / 0.32),
+    rgb(52 168 83 / 0.28),
+    rgb(66 133 244 / 0.35)
+  );
+  mix-blend-mode: overlay;
+  animation: dilo-orbe-giro 18s linear infinite;
+}
+
+.dilo-orbe[data-estado="escuchando"] {
+  animation-duration: 3.2s;
+  box-shadow:
+    0 1px 2px rgb(60 64 67 / 0.15),
+    0 0 0 10px rgb(66 133 244 / 0.12),
+    0 24px 56px -16px rgb(66 133 244 / 0.55);
+}
+
+.dilo-orbe[data-estado="pensando"] {
+  animation-duration: 1.8s;
+  filter: saturate(1.15) brightness(1.04);
+}
+
+.dilo-orbe[data-estado="hablando"] {
+  animation-duration: 4s;
+}
+
+@keyframes dilo-orbe-morph {
+  0%,
+  100% {
+    border-radius: 46% 54% 50% 50% / 50% 46% 54% 50%;
+    transform: scale(1) rotate(0deg);
+  }
+  35% {
+    border-radius: 54% 46% 58% 42% / 44% 56% 44% 56%;
+    transform: scale(1.04) rotate(6deg);
+  }
+  70% {
+    border-radius: 42% 58% 46% 54% / 58% 42% 52% 48%;
+    transform: scale(0.97) rotate(-5deg);
+  }
+}
+
+@keyframes dilo-orbe-giro {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.font-dilo {
+  font-family: Roboto, "Google Sans", ui-sans-serif, system-ui, sans-serif;
+}

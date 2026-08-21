@@ -36,11 +36,9 @@ export interface MotorAutomatizacion {
 
 /** Implementaciones vivas en el código. */
 export const SERVICIOS_FUTUROS = [
-  "WhatsApp Business Platform (/api/whatsapp)",
-  "API de inteligencia artificial (/api/interpretar)",
-  "Servicio de reconocimiento de voz (navegador + /api/transcribir)",
+  "Dilo / ChatGPT con herramientas (/api/dilo)",
+  "Voz ElevenLabs (/api/hablar) · Voice ID copiado",
+  "Whisper (/api/transcribir)",
   "Supabase (auth + RLS)",
   "Vercel (SSR + cron /api/ejecutar)",
-  "Google Calendar",
-  "Sistema de automatización (panel + cron)",
 ] as const;

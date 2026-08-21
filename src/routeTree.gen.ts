@@ -29,8 +29,10 @@ import { Route as AdminAutomatizacionesRouteImport } from './routes/admin/automa
 import { Route as AdminConfiguracionRouteImport } from './routes/admin/configuracion'
 import { Route as AdminIntegracionesRouteImport } from './routes/admin/integraciones'
 import { Route as AdminUsuariosRouteImport } from './routes/admin/usuarios'
+import { Route as ApiDiloRouteImport } from './routes/api/dilo'
 import { Route as ApiEjecutarRouteImport } from './routes/api/ejecutar'
 import { Route as ApiEstadoRouteImport } from './routes/api/estado'
+import { Route as ApiHablarRouteImport } from './routes/api/hablar'
 import { Route as ApiInterpretarRouteImport } from './routes/api/interpretar'
 import { Route as ApiTranscribirRouteImport } from './routes/api/transcribir'
 import { Route as ApiUsuariosRouteImport } from './routes/api/usuarios'
@@ -135,6 +137,11 @@ const AdminUsuariosRoute = AdminUsuariosRouteImport.update({
   path: '/usuarios',
   getParentRoute: () => AdminRouteRoute,
 } as any)
+const ApiDiloRoute = ApiDiloRouteImport.update({
+  id: '/api/dilo',
+  path: '/api/dilo',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiEjecutarRoute = ApiEjecutarRouteImport.update({
   id: '/api/ejecutar',
   path: '/api/ejecutar',
@@ -143,6 +150,11 @@ const ApiEjecutarRoute = ApiEjecutarRouteImport.update({
 const ApiEstadoRoute = ApiEstadoRouteImport.update({
   id: '/api/estado',
   path: '/api/estado',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiHablarRoute = ApiHablarRouteImport.update({
+  id: '/api/hablar',
+  path: '/api/hablar',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiInterpretarRoute = ApiInterpretarRouteImport.update({
@@ -185,8 +197,10 @@ export interface FileRoutesByFullPath {
   '/admin/configuracion': typeof AdminConfiguracionRoute
   '/admin/integraciones': typeof AdminIntegracionesRoute
   '/admin/usuarios': typeof AdminUsuariosRoute
+  '/api/dilo': typeof ApiDiloRoute
   '/api/ejecutar': typeof ApiEjecutarRoute
   '/api/estado': typeof ApiEstadoRoute
+  '/api/hablar': typeof ApiHablarRoute
   '/api/interpretar': typeof ApiInterpretarRoute
   '/api/transcribir': typeof ApiTranscribirRoute
   '/api/usuarios': typeof ApiUsuariosRoute
@@ -211,8 +225,10 @@ export interface FileRoutesByTo {
   '/admin/configuracion': typeof AdminConfiguracionRoute
   '/admin/integraciones': typeof AdminIntegracionesRoute
   '/admin/usuarios': typeof AdminUsuariosRoute
+  '/api/dilo': typeof ApiDiloRoute
   '/api/ejecutar': typeof ApiEjecutarRoute
   '/api/estado': typeof ApiEstadoRoute
+  '/api/hablar': typeof ApiHablarRoute
   '/api/interpretar': typeof ApiInterpretarRoute
   '/api/transcribir': typeof ApiTranscribirRoute
   '/api/usuarios': typeof ApiUsuariosRoute
@@ -240,8 +256,10 @@ export interface FileRoutesById {
   '/admin/configuracion': typeof AdminConfiguracionRoute
   '/admin/integraciones': typeof AdminIntegracionesRoute
   '/admin/usuarios': typeof AdminUsuariosRoute
+  '/api/dilo': typeof ApiDiloRoute
   '/api/ejecutar': typeof ApiEjecutarRoute
   '/api/estado': typeof ApiEstadoRoute
+  '/api/hablar': typeof ApiHablarRoute
   '/api/interpretar': typeof ApiInterpretarRoute
   '/api/transcribir': typeof ApiTranscribirRoute
   '/api/usuarios': typeof ApiUsuariosRoute
@@ -269,8 +287,10 @@ export interface FileRouteTypes {
     | '/admin/configuracion'
     | '/admin/integraciones'
     | '/admin/usuarios'
+    | '/api/dilo'
     | '/api/ejecutar'
     | '/api/estado'
+    | '/api/hablar'
     | '/api/interpretar'
     | '/api/transcribir'
     | '/api/usuarios'
@@ -295,8 +315,10 @@ export interface FileRouteTypes {
     | '/admin/configuracion'
     | '/admin/integraciones'
     | '/admin/usuarios'
+    | '/api/dilo'
     | '/api/ejecutar'
     | '/api/estado'
+    | '/api/hablar'
     | '/api/interpretar'
     | '/api/transcribir'
     | '/api/usuarios'
@@ -323,8 +345,10 @@ export interface FileRouteTypes {
     | '/admin/configuracion'
     | '/admin/integraciones'
     | '/admin/usuarios'
+    | '/api/dilo'
     | '/api/ejecutar'
     | '/api/estado'
+    | '/api/hablar'
     | '/api/interpretar'
     | '/api/transcribir'
     | '/api/usuarios'
@@ -338,8 +362,10 @@ export interface RootRouteChildren {
   AdminRouteRoute: typeof AdminRouteRouteWithChildren
   IniciarSesionRoute: typeof IniciarSesionRoute
   RegistroRoute: typeof RegistroRoute
+  ApiDiloRoute: typeof ApiDiloRoute
   ApiEjecutarRoute: typeof ApiEjecutarRoute
   ApiEstadoRoute: typeof ApiEstadoRoute
+  ApiHablarRoute: typeof ApiHablarRoute
   ApiInterpretarRoute: typeof ApiInterpretarRoute
   ApiTranscribirRoute: typeof ApiTranscribirRoute
   ApiUsuariosRoute: typeof ApiUsuariosRoute
@@ -488,6 +514,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminUsuariosRouteImport
       parentRoute: typeof AdminRouteRoute
     }
+    '/api/dilo': {
+      id: '/api/dilo'
+      path: '/api/dilo'
+      fullPath: '/api/dilo'
+      preLoaderRoute: typeof ApiDiloRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/ejecutar': {
       id: '/api/ejecutar'
       path: '/api/ejecutar'
@@ -500,6 +533,13 @@ declare module '@tanstack/react-router' {
       path: '/api/estado'
       fullPath: '/api/estado'
       preLoaderRoute: typeof ApiEstadoRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/hablar': {
+      id: '/api/hablar'
+      path: '/api/hablar'
+      fullPath: '/api/hablar'
+      preLoaderRoute: typeof ApiHablarRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/interpretar': {
@@ -589,8 +629,10 @@ const rootRouteChildren: RootRouteChildren = {
   AdminRouteRoute: AdminRouteRouteWithChildren,
   IniciarSesionRoute: IniciarSesionRoute,
   RegistroRoute: RegistroRoute,
+  ApiDiloRoute: ApiDiloRoute,
   ApiEjecutarRoute: ApiEjecutarRoute,
   ApiEstadoRoute: ApiEstadoRoute,
+  ApiHablarRoute: ApiHablarRoute,
   ApiInterpretarRoute: ApiInterpretarRoute,
   ApiTranscribirRoute: ApiTranscribirRoute,
   ApiUsuariosRoute: ApiUsuariosRoute,

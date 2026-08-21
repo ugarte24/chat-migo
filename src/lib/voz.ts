@@ -1,3 +1,5 @@
+let audioActual: HTMLAudioElement | null = null;
+
 export function reconocimientoVozDisponible() {
   if (typeof window === "undefined") return false;
   const w = window as unknown as {
@@ -5,6 +7,10 @@ export function reconocimientoVozDisponible() {
     webkitSpeechRecognition?: unknown;
   };
   return Boolean(w.SpeechRecognition || w.webkitSpeechRecognition);
+}
+
+export function microfonoDisponible() {
+  return typeof navigator !== "undefined" && Boolean(navigator.mediaDevices?.getUserMedia);
 }
 
 export function sintesisVozDisponible() {
@@ -17,6 +23,16 @@ function ctorReconocimiento() {
     webkitSpeechRecognition?: new () => Reconocimiento;
   };
   return w.SpeechRecognition || w.webkitSpeechRecognition;
+}
+
+export async function transcribirAudio(blob: Blob): Promise<string | null> {
+  const form = new FormData();
+  const nombre = blob.type.includes("mp4") ? "nota.m4a" : "nota.webm";
+  form.append("audio", blob, nombre);
+  const res = await fetch("/api/transcribir", { method: "POST", body: form });
+  if (!res.ok) return null;
+  const cuerpo = (await res.json().catch(() => null)) as { texto?: string } | null;
+  return cuerpo?.texto?.trim() || null;
 }
 
 export function transcribirEnNavegador(): Promise<string> {
@@ -41,79 +57,101 @@ export function transcribirEnNavegador(): Promise<string> {
   });
 }
 
-/** Escucha continua: se reinicia sola hasta que llames al retorno. */
-export function iniciarEscuchaContinua(onTexto: (texto: string) => void): () => void {
-  const Ctor = ctorReconocimiento();
-  if (!Ctor) return () => undefined;
+function mimeGrabacion() {
+  const tipos = ["audio/webm;codecs=opus", "audio/webm", "audio/mp4"];
+  return tipos.find((t) => typeof MediaRecorder !== "undefined" && MediaRecorder.isTypeSupported(t)) ?? "";
+}
 
-  let activo = true;
-  const rec = new Ctor();
-  rec.lang = "es-ES";
-  rec.interimResults = false;
-  rec.continuous = true;
-  rec.maxAlternatives = 1;
-
-  rec.onresult = (evento) => {
-    const resultados = evento.results;
-    for (let i = evento.resultIndex ?? 0; i < resultados.length; i++) {
-      const item = resultados[i];
-      if (!item?.isFinal) continue;
-      const texto = item[0]?.transcript?.trim() ?? "";
-      if (texto) onTexto(texto);
-    }
+/** Graba hasta que llamas a detener(). Devuelve el audio. */
+export async function iniciarGrabacion(): Promise<{ detener: () => Promise<Blob> }> {
+  const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+  const mime = mimeGrabacion();
+  const rec = mime ? new MediaRecorder(stream, { mimeType: mime }) : new MediaRecorder(stream);
+  const trozos: Blob[] = [];
+  rec.ondataavailable = (e) => {
+    if (e.data.size > 0) trozos.push(e.data);
   };
-  rec.onend = () => {
-    if (activo) {
-      try {
-        rec.start();
-      } catch {
-        /* el motor aún no estaba listo */
-      }
-    }
-  };
-  rec.onerror = () => undefined;
-  try {
-    rec.start();
-  } catch {
-    activo = false;
-  }
-
-  return () => {
-    activo = false;
-    try {
-      rec.stop();
-    } catch {
-      /* ya estaba detenido */
-    }
+  rec.start(250);
+  return {
+    detener: () =>
+      new Promise((resolve, reject) => {
+        rec.onstop = () => {
+          stream.getTracks().forEach((t) => t.stop());
+          if (trozos.length === 0) {
+            reject(new Error("No se grabó audio."));
+            return;
+          }
+          resolve(new Blob(trozos, { type: rec.mimeType || "audio/webm" }));
+        };
+        if (rec.state === "inactive") {
+          stream.getTracks().forEach((t) => t.stop());
+          reject(new Error("La grabación ya había terminado."));
+          return;
+        }
+        rec.stop();
+      }),
   };
 }
 
-export function hablar(texto: string) {
-  if (!sintesisVozDisponible()) return;
+export async function hablar(texto: string) {
   const limpio = texto
     .replace(/[✓🔔⚙️🎤]/g, "")
     .replace(/^•\s*/gm, "")
     .trim();
   if (!limpio) return;
-  window.speechSynthesis.cancel();
-  const utterance = new SpeechSynthesisUtterance(limpio);
+  silenciar();
+  const api = await hablarConOpenAi(limpio);
+  if (!api) hablarEnNavegador(limpio);
+}
+
+async function hablarConOpenAi(texto: string) {
+  try {
+    const res = await fetch("/api/hablar", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ texto }),
+    });
+    if (!res.ok) return false;
+    const blob = await res.blob();
+    if (blob.size < 80) return false;
+    const url = URL.createObjectURL(blob);
+    const audio = new Audio(url);
+    audioActual = audio;
+    await audio.play();
+    await new Promise<void>((resolve) => {
+      audio.onended = () => resolve();
+      audio.onerror = () => resolve();
+    });
+    URL.revokeObjectURL(url);
+    if (audioActual === audio) audioActual = null;
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function hablarEnNavegador(texto: string) {
+  if (!sintesisVozDisponible()) return;
+  const utterance = new SpeechSynthesisUtterance(texto);
   utterance.lang = "es-ES";
   utterance.rate = 1.04;
   utterance.pitch = 1;
-  const voz = window.speechSynthesis
-    .getVoices()
-    .find((v) => v.lang.toLowerCase().startsWith("es"));
+  const voz = window.speechSynthesis.getVoices().find((v) => v.lang.toLowerCase().startsWith("es"));
   if (voz) utterance.voice = voz;
   window.speechSynthesis.speak(utterance);
 }
 
 export function silenciar() {
   if (sintesisVozDisponible()) window.speechSynthesis.cancel();
+  if (audioActual) {
+    audioActual.pause();
+    audioActual.src = "";
+    audioActual = null;
+  }
 }
 
 export function iaVozEtiqueta() {
-  if (reconocimientoVozDisponible()) return "Voz del navegador";
-  return "Voz local";
+  return "Voz de Dilo";
 }
 
 interface ResultadoVoz {

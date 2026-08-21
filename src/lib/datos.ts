@@ -116,8 +116,8 @@ export const hoyISO = () => {
 
 export const INTEGRACIONES = [
   { nombre: "WhatsApp Business Platform", descripcion: "Recepción y envío de mensajes y notas de voz.", estado: "Pendiente de conexión" },
-  { nombre: "API de inteligencia artificial", descripcion: "Interpretación de lenguaje natural e intenciones.", estado: "Simulada" },
-  { nombre: "Reconocimiento de voz", descripcion: "Transcripción de notas de voz a texto.", estado: "Simulada" },
+  { nombre: "API de inteligencia artificial", descripcion: "ChatGPT interpreta y actúa sobre tu agenda.", estado: "Conectado con OPENAI_API_KEY" },
+  { nombre: "Voz de Dilo", descripcion: "ElevenLabs TTS con Voice ID. Whisper transcribe.", estado: "ElevenLabs + OPENAI_API_KEY" },
   { nombre: "Supabase", descripcion: "Persistencia de tareas, eventos, memoria, historial y chat en el proyecto Dilo.", estado: "Conectado" },
   { nombre: "Vercel", descripcion: "Alojamiento SSR (TanStack Start + Nitro). Variables VITE_* en el dashboard del proyecto.", estado: "Listo para desplegar" },
   { nombre: "Google Calendar", descripcion: "Sincronización de eventos del usuario.", estado: "Pendiente de conexión" },
