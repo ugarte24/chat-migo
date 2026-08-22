@@ -6,7 +6,9 @@ const SILENCIO =
 let audioActual: HTMLAudioElement | null = null;
 let altavoz: HTMLAudioElement | null = null;
 let ctxAudio: AudioContext | null = null;
+let fuenteActual: AudioBufferSourceNode | null = null;
 let audioDesbloqueado = false;
+const cacheHablar = new Map<string, ArrayBuffer>();
 
 export function esIOS() {
   if (typeof navigator === "undefined") return false;
@@ -37,6 +39,98 @@ function prepararAltavoz() {
   return altavoz;
 }
 
+async function contextoListo() {
+  const Ctor = ctorAudioContext();
+  if (!Ctor) return null;
+  ctxAudio = ctxAudio ?? new Ctor();
+  if (ctxAudio.state === "suspended") {
+    try {
+      await ctxAudio.resume();
+    } catch {
+      /* iOS a veces pide otro gesto */
+    }
+  }
+  return ctxAudio;
+}
+
+function claveHablar(texto: string, vozId?: string) {
+  return `${vozId ?? ""}:${texto}`;
+}
+
+async function pedirAudioHablar(texto: string, vozId?: string) {
+  const res = await fetchConTiempo(
+    "/api/hablar",
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ texto, vozId }),
+    },
+    14_000,
+  );
+  if (!res.ok) return null;
+  const buf = await res.arrayBuffer();
+  return buf.byteLength < 80 ? null : buf;
+}
+
+export async function prefetchHablar(texto: string, vozId?: string) {
+  const limpio = texto.replace(/[✓🔔⚙️🎤]/g, "").replace(/^•\s*/gm, "").trim();
+  if (!limpio) return;
+  const clave = claveHablar(limpio, vozId);
+  if (cacheHablar.has(clave)) return;
+  try {
+    const buf = await pedirAudioHablar(limpio, vozId);
+    if (buf) cacheHablar.set(clave, buf);
+  } catch {
+    /* se intentará otra vez al hablar */
+  }
+}
+
+async function reproducirBuffer(buf: ArrayBuffer) {
+  const ctx = await contextoListo();
+  if (ctx) {
+    try {
+      const decoded = await ctx.decodeAudioData(buf.slice(0));
+      fuenteActual?.stop();
+      const fuente = ctx.createBufferSource();
+      fuente.buffer = decoded;
+      fuente.connect(ctx.destination);
+      fuenteActual = fuente;
+      await new Promise<void>((resolve) => {
+        fuente.onended = () => resolve();
+        try {
+          fuente.start();
+        } catch {
+          resolve();
+        }
+      });
+      if (fuenteActual === fuente) fuenteActual = null;
+      return true;
+    } catch {
+      /* algunos navegadores no decodifican el mp3; caemos al elemento audio */
+    }
+  }
+  const url = URL.createObjectURL(new Blob([buf], { type: "audio/mpeg" }));
+  const el = prepararAltavoz() ?? new Audio();
+  el.loop = false;
+  el.src = url;
+  el.muted = false;
+  el.volume = 1;
+  audioActual = el;
+  try {
+    await el.play();
+    await new Promise<void>((resolve) => {
+      el.onended = () => resolve();
+      el.onerror = () => resolve();
+    });
+    return true;
+  } catch {
+    return false;
+  } finally {
+    URL.revokeObjectURL(url);
+    if (audioActual === el) audioActual = null;
+  }
+}
+
 async function mantenerAltavozVivo() {
   const el = prepararAltavoz();
   if (!el || !audioDesbloqueado) return;
@@ -54,6 +148,7 @@ async function mantenerAltavozVivo() {
 
 export async function desbloquearAudio() {
   if (typeof Audio === "undefined") return;
+  await contextoListo();
   const el = prepararAltavoz();
   try {
     if (el) {
@@ -65,16 +160,8 @@ export async function desbloquearAudio() {
     }
     audioDesbloqueado = true;
   } catch {
-    /* el navegador aún bloquea autoplay */
-  }
-  const Ctor = ctorAudioContext();
-  if (Ctor) {
-    ctxAudio = ctxAudio ?? new Ctor();
-    try {
-      await ctxAudio.resume();
-    } catch {
-      /* iOS a veces pide otro gesto */
-    }
+    /* el navegador aún bloquea autoplay; el AudioContext ya se reanudó */
+    audioDesbloqueado = true;
   }
 }
 
@@ -438,59 +525,41 @@ export async function hablar(texto: string, vozId?: string) {
     .replace(/^•\s*/gm, "")
     .trim();
   if (!limpio) return;
-  silenciar();
-  const api = await hablarConElevenLabs(limpio, vozId);
-  if (api) return;
-  await new Promise((r) => window.setTimeout(r, 80));
-  hablarEnNavegador(limpio);
-}
-
-async function hablarConElevenLabs(texto: string, vozId?: string) {
+  if (sintesisVozDisponible()) window.speechSynthesis.cancel();
   try {
-    const res = await fetchConTiempo(
-      "/api/hablar",
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ texto, vozId }),
-      },
-      14_000,
-    );
-    if (!res.ok) return false;
-    const blob = await res.blob();
-    if (blob.size < 80) return false;
-    const url = URL.createObjectURL(blob);
-    const el = prepararAltavoz() ?? new Audio();
-    el.setAttribute("playsinline", "true");
-    audioActual = el;
-    el.loop = false;
-    el.src = url;
-    el.muted = false;
-    el.volume = 1;
-    if (ctxAudio?.state === "suspended") {
-      try {
-        await ctxAudio.resume();
-      } catch {
-        /* el gesto ya pasó */
-      }
-    }
-    await el.play();
-    await new Promise<void>((resolve) => {
-      el.onended = () => resolve();
-      el.onerror = () => resolve();
-    });
-    URL.revokeObjectURL(url);
-    if (audioActual === el) audioActual = null;
-    await mantenerAltavozVivo();
-    return true;
+    fuenteActual?.stop();
   } catch {
-    return false;
+    /* ya parada */
   }
+  fuenteActual = null;
+  await contextoListo();
+
+  const clave = claveHablar(limpio, vozId);
+  let buf = cacheHablar.get(clave) ?? null;
+  if (!buf) {
+    buf = await pedirAudioHablar(limpio, vozId);
+    if (buf) cacheHablar.set(clave, buf);
+  }
+  if (buf && (await reproducirBuffer(buf))) {
+    await mantenerAltavozVivo();
+    return;
+  }
+  await hablarEnNavegador(limpio);
 }
 
-function hablarEnNavegador(texto: string) {
+async function hablarEnNavegador(texto: string) {
   if (!sintesisVozDisponible()) return;
-  const decir = () => {
+  const vocesListas = () =>
+    new Promise<void>((resolve) => {
+      if (window.speechSynthesis.getVoices().length > 0) {
+        resolve();
+        return;
+      }
+      window.speechSynthesis.addEventListener("voiceschanged", () => resolve(), { once: true });
+      window.setTimeout(resolve, 400);
+    });
+  await vocesListas();
+  await new Promise<void>((resolve) => {
     const utterance = new SpeechSynthesisUtterance(texto);
     utterance.lang = "es-VE";
     utterance.rate = 1.04;
@@ -501,18 +570,22 @@ function hablarEnNavegador(texto: string) {
       voces.find((v) => v.lang.toLowerCase().startsWith("es-mx")) ||
       voces.find((v) => v.lang.toLowerCase().startsWith("es"));
     if (voz) utterance.voice = voz;
+    const listo = () => resolve();
+    utterance.onend = listo;
+    utterance.onerror = listo;
     window.speechSynthesis.speak(utterance);
-  };
-  if (window.speechSynthesis.getVoices().length === 0) {
-    window.speechSynthesis.addEventListener("voiceschanged", decir, { once: true });
-    window.setTimeout(decir, 250);
-    return;
-  }
-  decir();
+    window.setTimeout(listo, Math.min(12_000, texto.length * 90 + 1_800));
+  });
 }
 
 export function silenciar() {
   if (sintesisVozDisponible()) window.speechSynthesis.cancel();
+  try {
+    fuenteActual?.stop();
+  } catch {
+    /* ya parada */
+  }
+  fuenteActual = null;
   if (audioActual) {
     audioActual.pause();
     audioActual = null;

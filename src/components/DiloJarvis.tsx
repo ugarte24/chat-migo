@@ -13,6 +13,7 @@ import {
   desbloquearAudio,
   esMovil,
   hablar,
+  prefetchHablar,
 } from "@/lib/voz";
 
 const ESTADO_TEXTO: Record<EstadoOrbe, string> = {
@@ -54,9 +55,11 @@ export function Dilo() {
   const visibles = mensajes.filter((m) => m.tipo !== "proceso" && m.tipo !== "analisis");
   const ultimoAsistente = [...visibles].reverse().find((m) => m.autor === "asistente");
   const hayConversacion = visibles.some((m) => m.autor === "usuario");
-  const saludoTexto = !hayConversacion
-    ? (visibles.find((m) => m.id === "msg-welcome")?.texto ?? ultimoAsistente?.texto)
-    : undefined;
+  const textoSaludo =
+    visibles.find((m) => m.id === "msg-welcome")?.texto ??
+    (perfil?.nombre
+      ? `Hola, ${perfil.nombre}. Estoy aquí. Cuéntame qué tienes entre manos.`
+      : "Hola. Estoy aquí. Cuéntame qué tienes entre manos.");
   const entradaDichaRef = useRef(false);
   const mensajeAlEntrarRef = useRef<string | undefined>(undefined);
   if (mensajeAlEntrarRef.current === undefined && ultimoAsistente) {
@@ -64,12 +67,9 @@ export function Dilo() {
   }
 
   useEffect(() => {
-    const prime = () => {
-      void desbloquearAudio();
-    };
-    window.addEventListener("pointerdown", prime, { once: true });
-    return () => window.removeEventListener("pointerdown", prime);
-  }, []);
+    if (!configuracion.preferenciaVoz || !textoSaludo) return;
+    void prefetchHablar(textoSaludo, configuracion.vozId);
+  }, [configuracion.preferenciaVoz, configuracion.vozId, textoSaludo]);
 
   useEffect(() => {
     if (pensando || grabando || transcribiendo || !ultimoAsistente) {
@@ -114,10 +114,10 @@ export function Dilo() {
       return dichoVivo ? `Te oí: “${dichoVivo}”` : "Un momento, lo estoy viendo…";
     }
     if (hablando && ultimoAsistente) return ultimoAsistente.texto;
-    if (saludoTexto) return saludoTexto;
+    if (!hayConversacion) return textoSaludo;
     if (!hayMic) return "Este navegador no puede usar el micrófono. Prueba en Chrome.";
     return CONSEJOS[indiceConsejo] ?? CONSEJOS[0];
-  }, [aviso, dichoVivo, enMovil, grabando, hablando, hayMic, indiceConsejo, pensando, saludoTexto, transcribiendo, ultimoAsistente]);
+  }, [aviso, dichoVivo, enMovil, grabando, hablando, hayConversacion, hayMic, indiceConsejo, pensando, textoSaludo, transcribiendo, ultimoAsistente]);
 
   const terminarGrabacion = async () => {
     if (cortandoRef.current) return;
@@ -160,20 +160,16 @@ export function Dilo() {
       return;
     }
 
-    silenciar();
-    setHablando(false);
     setAviso(null);
     setDichoVivo("");
     await desbloquearAudio();
-    if (
-      !entradaDichaRef.current &&
-      configuracion.preferenciaVoz &&
-      saludoTexto &&
-      !hayConversacion
-    ) {
+    if (!entradaDichaRef.current && configuracion.preferenciaVoz && textoSaludo) {
       entradaDichaRef.current = true;
       setHablando(true);
-      await hablar(saludoTexto, configuracion.vozId);
+      await hablar(textoSaludo, configuracion.vozId);
+      setHablando(false);
+    } else {
+      silenciar();
       setHablando(false);
     }
     try {
