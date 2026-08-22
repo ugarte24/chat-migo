@@ -33,7 +33,7 @@ import { Reveal } from "@/components/landing/Reveal";
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "Dilo | Organiza, recuerda y automatiza" },
+      { title: "Dilo" },
       {
         name: "description",
         content:

@@ -1,0 +1,19 @@
+{
+  "name": "Dilo",
+  "short_name": "Dilo",
+  "description": "Habla con Dilo. Él se encarga del resto.",
+  "start_url": "/panel",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#f8f9fa",
+  "theme_color": "#0ea5e9",
+  "lang": "es",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}
