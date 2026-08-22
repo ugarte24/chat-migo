@@ -42,7 +42,8 @@ export function Dilo() {
       return;
     }
     setHablando(true);
-    const id = window.setTimeout(() => setHablando(false), 7000);
+    const ms = Math.min(14_000, Math.max(2_800, Math.round((ultimoAsistente.texto.length / 13) * 1000)));
+    const id = window.setTimeout(() => setHablando(false), ms);
     return () => window.clearTimeout(id);
   }, [grabando, pensando, transcribiendo, ultimoAsistente?.id]);
 
@@ -120,13 +121,34 @@ export function Dilo() {
     }
   };
 
+  const colorEstado =
+    estado === "escuchando"
+      ? "text-[#1a73e8]"
+      : estado === "pensando"
+        ? "text-[#f9ab00]"
+        : estado === "hablando"
+          ? "text-[#188038]"
+          : "text-[#5f6368]";
+
   return (
-    <div className="font-dilo relative flex h-svh min-h-0 flex-col bg-[#f8f9fa] text-[#202124]">
-      <header className="flex h-14 shrink-0 items-center gap-3 border-b border-[#dadce0] bg-white px-4">
-        <span className="flex size-8 items-center justify-center rounded-full bg-[#1a73e8] text-[13px] font-medium text-white">
+    <div className="font-dilo relative flex h-svh min-h-0 flex-col overflow-hidden bg-[#f8f9fa] text-[#202124]">
+      <div className="pointer-events-none absolute inset-0 overflow-hidden" aria-hidden>
+        <span className="dilo-mancha-fondo absolute -left-16 top-24 size-72 rounded-full bg-[#4285f4]/15 blur-3xl" />
+        <span className="dilo-mancha-fondo absolute -right-10 top-40 size-64 rounded-full bg-[#ea4335]/12 blur-3xl [animation-delay:1.2s]" />
+        <span className="dilo-mancha-fondo absolute bottom-10 left-1/3 size-80 rounded-full bg-[#34a853]/12 blur-3xl [animation-delay:2.1s]" />
+        <span className="dilo-mancha-fondo absolute bottom-24 right-1/4 size-56 rounded-full bg-[#fbbc05]/16 blur-3xl [animation-delay:0.6s]" />
+      </div>
+      <header className="relative z-10 flex h-14 shrink-0 items-center gap-3 border-b border-[#dadce0]/80 bg-white/80 px-4 backdrop-blur-md">
+        <span className="flex size-8 items-center justify-center rounded-full bg-[#1a73e8] text-[13px] font-medium text-white shadow-[0_0_0_4px_rgb(26_115_232/0.15)]">
           D
         </span>
         <p className="text-[18px] font-normal tracking-tight text-[#202124]">Dilo</p>
+        <span
+          className={`ml-1 size-2 rounded-full ${
+            estado === "espera" ? "bg-[#34a853]" : estado === "escuchando" ? "bg-[#1a73e8] animate-pulse" : estado === "pensando" ? "bg-[#fbbc05] animate-pulse" : "bg-[#34a853] animate-pulse"
+          }`}
+          aria-hidden
+        />
         <div className="ml-auto flex items-center gap-0.5">
           <IconoBarra
             etiqueta={configuracion.preferenciaVoz ? "Silenciar a Dilo" : "Dilo habla"}
@@ -169,21 +191,31 @@ export function Dilo() {
         </div>
       </header>
 
-      <div className="flex min-h-0 flex-1 flex-col items-center justify-center px-6">
+      <div className="relative z-10 flex min-h-0 flex-1 flex-col items-center justify-center px-6">
         <DiloOrbe estado={estado} onActivar={() => void pulsarOrbe()} />
-        <p className="mt-8 text-[13px] font-medium uppercase tracking-[0.22em] text-[#5f6368]">
+        <p
+          key={estado}
+          className={`mt-8 text-[13px] font-medium uppercase tracking-[0.22em] ${colorEstado}`}
+          style={{ animation: "dilo-texto-entra 0.35s ease-out" }}
+        >
           {ESTADO_TEXTO[estado]}
         </p>
-        <p className="mt-3 max-w-md text-center text-[15px] leading-6 text-[#3c4043]">{pie}</p>
+        <p
+          key={pie}
+          className="mt-3 max-w-md text-center text-[15px] leading-6 text-[#3c4043]"
+          style={{ animation: "dilo-texto-entra 0.4s ease-out" }}
+        >
+          {pie}
+        </p>
       </div>
 
-      <div className="mx-auto w-full max-w-xl px-4 pb-7">
+      <div className="relative z-10 mx-auto w-full max-w-xl px-4 pb-7">
         <form
           onSubmit={(e) => {
             e.preventDefault();
             enviar(texto);
           }}
-          className="flex items-center gap-3 rounded-full bg-white px-2 py-2 shadow-[0_1px_3px_rgb(60_64_67/0.15),0_1px_2px_rgb(60_64_67/0.3)]"
+          className="flex items-center gap-3 rounded-full bg-white/90 px-2 py-2 shadow-[0_1px_3px_rgb(60_64_67/0.15),0_1px_2px_rgb(60_64_67/0.3)] backdrop-blur"
         >
           <input
             value={texto}
@@ -200,13 +232,13 @@ export function Dilo() {
             onClick={() => void pulsarOrbe()}
             className={
               grabando
-                ? "inline-flex size-12 shrink-0 items-center justify-center rounded-full bg-[#ea4335] text-white"
+                ? "inline-flex size-12 shrink-0 items-center justify-center rounded-full bg-[#ea4335] text-white shadow-[0_0_0_8px_rgb(234_67_53/0.18)] transition-transform duration-300"
                 : transcribiendo || pensando
-                  ? "inline-flex size-12 shrink-0 items-center justify-center rounded-full bg-[#fbbc05] text-[#202124]"
-                  : "inline-flex size-12 shrink-0 items-center justify-center rounded-full bg-[#1a73e8] text-white hover:bg-[#1557b0]"
+                  ? "inline-flex size-12 shrink-0 animate-pulse items-center justify-center rounded-full bg-[#fbbc05] text-[#202124]"
+                  : "inline-flex size-12 shrink-0 items-center justify-center rounded-full bg-[#1a73e8] text-white transition hover:scale-105 hover:bg-[#1557b0]"
             }
           >
-            <Mic className="size-5" />
+            <Mic className={`size-5 ${grabando ? "animate-pulse" : ""}`} />
           </button>
         </form>
       </div>

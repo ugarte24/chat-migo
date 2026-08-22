@@ -271,7 +271,7 @@ export function interpretar(texto: string): Interpretacion {
   } else if (
     /\bque tengo\b|\bque hay\b|\bmis tareas\b|\bmi agenda\b|\bconsulta(r)?\b|\bmuestrame\b|\bque recuerdas\b|\bque tareas\b|\btengo para hoy\b|\bque tengo pendiente\b/.test(
       n,
-    )
+    ) || esSaludoDilo(texto)
   ) {
     intencion = "consulta";
   } else if (frecuencia) {
@@ -313,3 +313,17 @@ export const fechaLegible = (iso: string | null) => {
 
 export const horaAhora = () =>
   new Date().toLocaleTimeString("es-ES", { hour: "2-digit", minute: "2-digit" });
+
+/** Saludo corto a Dilo: hola, dilo, buenas, etc. */
+export function esSaludoDilo(texto: string): boolean {
+  const n = normalizar(texto)
+    .replace(/[¡!¿?.,;:]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+  if (!n) return false;
+  if (/^(dilo|oye dilo|eh dilo|hey dilo)$/.test(n)) return true;
+  if (/^dilo\s+(hola|buenas|hey|que tal)$/.test(n)) return true;
+  return /^(hola+|holi|hey|buenas|buenos dias|buenas tardes|buenas noches|buen dia|que tal|que onda|alo|hi|hello)( dilo)?( como estas| que tal| buenas)?$/.test(
+    n,
+  );
+}

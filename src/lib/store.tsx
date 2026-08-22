@@ -10,7 +10,7 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import { fechaLegible, horaAhora, interpretar, type Interpretacion } from "./asistente";
+import { fechaLegible, horaAhora, interpretar, esSaludoDilo, type Interpretacion } from "./asistente";
 import { useAuth } from "./auth";
 import {
   hoyISO,
@@ -24,7 +24,7 @@ import {
   type Recordatorio,
   type Tarea,
 } from "./datos";
-import type { AccionDilo, ContextoDilo, MensajeDilo, TurnoDilo } from "./dilo";
+import { briefingPendientes, type AccionDilo, type ContextoDilo, type MensajeDilo, type TurnoDilo } from "./dilo";
 import { fetchConTiempo } from "./utils";
 import { avisosPendientes, buscarUno } from "./motor";
 import {
@@ -891,6 +891,14 @@ export function AsistenteProvider({ children }: { children: ReactNode }) {
           }));
 
         try {
+          if (esSaludoDilo(texto)) {
+            push({
+              autor: "asistente",
+              texto: briefingPendientes(contexto),
+              tipo: "texto",
+            });
+            return;
+          }
           const turno = await pedirTurnoDilo(texto, historial, contexto);
           if (turno?.texto || (turno && turno.acciones.length > 0)) {
             aplicarAcciones(turno.acciones, texto);

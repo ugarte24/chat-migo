@@ -290,8 +290,8 @@ function hablarEnNavegador(texto: string) {
   if (!sintesisVozDisponible()) return;
   const utterance = new SpeechSynthesisUtterance(texto);
   utterance.lang = "es-ES";
-  utterance.rate = 1.04;
-  utterance.pitch = 1;
+  utterance.rate = 1.08;
+  utterance.pitch = 1.12;
   const voz = window.speechSynthesis.getVoices().find((v) => v.lang.toLowerCase().startsWith("es"));
   if (voz) utterance.voice = voz;
   window.speechSynthesis.speak(utterance);

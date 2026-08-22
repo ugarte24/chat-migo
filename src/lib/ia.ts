@@ -116,11 +116,13 @@ function envServidor(clave: string) {
   return process.env[clave]?.trim() ?? "";
 }
 
-/** Charlotte (conversacional, multilingual). Cámbiala en ELEVENLABS_VOICE_ID. */
-export const VOZ_ELEVENLABS_ID = "XB0fDUnXU5powFXDhCwa";
+/** Laura: joven, entusiasta y clara en español. Cámbiala en ELEVENLABS_VOICE_ID. */
+export const VOZ_ELEVENLABS_ID = "FGY2WhTYpPnrIDTdsKH5";
 
 export function vozElevenLabsId() {
-  return envServidor("ELEVENLABS_VOICE_ID") || VOZ_ELEVENLABS_ID;
+  const env = envServidor("ELEVENLABS_VOICE_ID");
+  if (!env || env === "XB0fDUnXU5powFXDhCwa") return VOZ_ELEVENLABS_ID;
+  return env;
 }
 
 export function elevenLabsConfigurado() {
@@ -143,6 +145,12 @@ async function sintetizarElevenLabs(texto: string): Promise<ArrayBuffer | null> 
       body: JSON.stringify({
         text: texto.slice(0, 4000),
         model_id: "eleven_multilingual_v2",
+        voice_settings: {
+          stability: 0.32,
+          similarity_boost: 0.78,
+          style: 0.68,
+          use_speaker_boost: true,
+        },
       }),
     });
     if (!respuesta.ok) return null;

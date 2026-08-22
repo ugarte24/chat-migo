@@ -21,20 +21,21 @@ export function DiloOrbe({
       type="button"
       onClick={onActivar}
       aria-label={etiqueta}
-      className="relative flex size-[min(72vw,22rem)] items-center justify-center rounded-full bg-transparent"
+      className="relative flex size-[min(78vw,24rem)] items-center justify-center rounded-full bg-transparent"
     >
-      <span
-        className={cn(
-          "pointer-events-none absolute inset-[8%] rounded-full border border-[#dadce0]",
-          estado === "escuchando" && "border-[#1a73e8]/40",
-        )}
-        aria-hidden
-      />
-      <span
-        className={cn("dilo-orbe relative block", estado === "escuchando" && "scale-[1.03]")}
-        data-estado={estado}
-      >
+      <span className="dilo-halo" data-estado={estado} aria-hidden />
+      <span className="dilo-anillo dilo-anillo-a" data-estado={estado} aria-hidden />
+      <span className="dilo-anillo dilo-anillo-b" data-estado={estado} aria-hidden />
+      <span className="dilo-anillo dilo-anillo-c" data-estado={estado} aria-hidden />
+      <span className={cn("dilo-orbe relative block")} data-estado={estado}>
         <span className="dilo-orbe-brillo" />
+        <span className="dilo-orbe-ondas" data-estado={estado} aria-hidden>
+          <i />
+          <i />
+          <i />
+          <i />
+          <i />
+        </span>
       </span>
     </button>
   );

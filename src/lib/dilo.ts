@@ -1,4 +1,5 @@
 import { iaConfigurada } from "./ia";
+import { esSaludoDilo } from "./asistente";
 
 export type PrioridadDilo = "alta" | "media" | "baja";
 
@@ -203,29 +204,51 @@ const HERRAMIENTAS = [
 ] as const;
 
 function resumirAgenda(ctx: ContextoDilo) {
-  const pendientes = ctx.tareas.filter((t) => t.estado !== "completada" && t.estado !== "completado");
-  const recs = ctx.recordatorios.filter((r) => r.estado === "pendiente");
-  const eventos = ctx.eventos.filter((e) => e.fecha >= ctx.hoy);
-  const partes = [
-    pendientes.length
-      ? `Tienes ${pendientes.length} tarea${pendientes.length === 1 ? "" : "s"}: ${pendientes
-          .slice(0, 4)
-          .map((t) => t.titulo)
-          .join(", ")}.`
-      : "No tienes tareas pendientes.",
-    recs.length
-      ? `Recordatorios: ${recs
-          .slice(0, 3)
-          .map((r) => `${r.actividad} a las ${r.hora}`)
-          .join(", ")}.`
-      : "",
-    eventos.length
-      ? `Eventos: ${eventos
-          .slice(0, 3)
-          .map((e) => e.titulo)
-          .join(", ")}.`
-      : "",
-  ].filter(Boolean);
+  return briefingPendientes(ctx);
+}
+
+export function briefingPendientes(ctx: ContextoDilo) {
+  const nombre = (ctx.nombre.split(/\s+/)[0] ?? "").trim();
+  const hola = nombre && !/^dilo$/i.test(nombre) ? `Hola, ${nombre}.` : "Hola.";
+
+  const tareas = ctx.tareas.filter((t) => t.estado !== "completada" && t.estado !== "completado");
+  const recs = ctx.recordatorios.filter((r) => r.estado === "pendiente" || r.estado === "activo");
+  const eventos = ctx.eventos.filter(
+    (e) =>
+      e.fecha >= ctx.hoy &&
+      e.estado !== "completado" &&
+      e.estado !== "completada" &&
+      e.estado !== "cancelada",
+  );
+
+  const deHoy = [
+    ...tareas.filter((t) => !t.fecha || t.fecha === ctx.hoy).map((t) => t.titulo),
+    ...recs.filter((r) => r.fecha === ctx.hoy).map((r) => `${r.actividad} a las ${r.hora}`),
+    ...eventos
+      .filter((e) => e.fecha === ctx.hoy)
+      .map((e) => (e.persona ? `${e.titulo} con ${e.persona} a las ${e.hora}` : `${e.titulo} a las ${e.hora}`)),
+  ];
+  const proximos = [
+    ...tareas.filter((t) => t.fecha && t.fecha > ctx.hoy).map((t) => `${t.titulo} el ${t.fecha}`),
+    ...recs.filter((r) => r.fecha > ctx.hoy).map((r) => `${r.actividad} el ${r.fecha} a las ${r.hora}`),
+    ...eventos.filter((e) => e.fecha > ctx.hoy).map((e) => `${e.titulo} el ${e.fecha}`),
+  ];
+
+  if (deHoy.length === 0 && proximos.length === 0) {
+    return `${hola} No tienes pendientes por ahora. ¿En qué te ayudo?`;
+  }
+
+  const partes = [hola];
+  if (deHoy.length === 0) {
+    partes.push("Hoy no tienes nada marcado.");
+  } else if (deHoy.length === 1) {
+    partes.push(`Hoy tienes un pendiente: ${deHoy[0]}.`);
+  } else {
+    partes.push(`Hoy tienes ${deHoy.length} pendientes: ${deHoy.slice(0, 4).join("; ")}.`);
+  }
+  if (proximos.length > 0) {
+    partes.push(`Más adelante: ${proximos.slice(0, 3).join("; ")}.`);
+  }
   return partes.join(" ");
 }
 
@@ -260,6 +283,7 @@ function sistema(ctx: ContextoDilo) {
   return `Eres Dilo, el asistente personal de ${ctx.nombre}. Hablas español, breve y natural, como un ayudante de voz: directo, calmado, útil.
 Hoy es ${ctx.hoy}. Son las ${ctx.hora}.
 Usas herramientas para guardar, consultar, completar, cambiar o borrar actividades. No digas que lo hiciste si no llamaste a la herramienta.
+Si el usuario te saluda (hola, dilo, hey, buenas, cómo estás) o solo dice tu nombre, llama consultar_agenda y responde con un saludo corto más los pendientes de hoy. Si no hay, dilo claro.
 ${ctx.memoriaActiva ? "Puedes guardar recuerdos si el usuario te lo pide." : "La memoria está desactivada: no guardes recuerdos."}
 Responde para ser escuchado en voz alta: frases cortas, sin markdown, sin listas con asteriscos.`;
 }
@@ -402,6 +426,10 @@ export async function conversarConDilo(
   historial: MensajeDilo[],
   contexto: ContextoDilo,
 ): Promise<TurnoDilo> {
+  if (esSaludoDilo(mensaje)) {
+    return { texto: briefingPendientes(contexto), acciones: [] };
+  }
+
   const clave = claveOpenAi();
   if (!clave || !iaConfigurada()) {
     return { texto: "", acciones: [] };
