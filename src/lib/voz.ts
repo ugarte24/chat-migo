@@ -1,20 +1,66 @@
 import { fetchConTiempo } from "./utils";
 
+const SILENCIO =
+  "data:audio/wav;base64,UklGRigAAABXQVZFZm10IBIAAAABAAEARKwAAIhYAQACABAAAABkYXRhAgAAAAEA";
+
 let audioActual: HTMLAudioElement | null = null;
+let altavoz: HTMLAudioElement | null = null;
+let ctxAudio: AudioContext | null = null;
 let audioDesbloqueado = false;
 
+export function esIOS() {
+  if (typeof navigator === "undefined") return false;
+  return (
+    /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+    (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1)
+  );
+}
+
+export function esMovil() {
+  if (typeof navigator === "undefined") return false;
+  return esIOS() || /Android|Mobi|webOS/i.test(navigator.userAgent);
+}
+
+function ctorAudioContext() {
+  if (typeof window === "undefined") return null;
+  return window.AudioContext || (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+}
+
+function prepararAltavoz() {
+  if (typeof Audio === "undefined") return null;
+  if (!altavoz) {
+    altavoz = new Audio();
+    altavoz.setAttribute("playsinline", "true");
+    altavoz.setAttribute("webkit-playsinline", "true");
+    altavoz.preload = "auto";
+  }
+  return altavoz;
+}
+
 export async function desbloquearAudio() {
-  if (audioDesbloqueado || typeof Audio === "undefined") return;
+  if (typeof Audio === "undefined") return;
+  const el = prepararAltavoz();
   try {
-    const silencio = new Audio(
-      "data:audio/wav;base64,UklGRigAAABXQVZFZm10IBIAAAABAAEARKwAAIhYAQACABAAAABkYXRhAgAAAAEA",
-    );
-    silencio.volume = 0.01;
-    await silencio.play();
-    silencio.pause();
+    if (el) {
+      el.src = SILENCIO;
+      el.muted = false;
+      el.volume = 0.05;
+      await el.play();
+      el.pause();
+      el.currentTime = 0;
+    }
     audioDesbloqueado = true;
   } catch {
     /* el navegador aún bloquea autoplay */
+  }
+  const Ctor = ctorAudioContext();
+  if (Ctor) {
+    ctxAudio = ctxAudio ?? new Ctor();
+    try {
+      await ctxAudio.resume();
+    } catch {
+      /* iOS a veces pide otro gesto */
+    }
   }
 }
 
@@ -43,10 +89,19 @@ function ctorReconocimiento() {
   return w.SpeechRecognition || w.webkitSpeechRecognition;
 }
 
+function nombreArchivoAudio(tipo: string) {
+  const t = tipo.toLowerCase();
+  if (t.includes("mp4") || t.includes("m4a") || t.includes("aac") || t.includes("caf")) return "nota.m4a";
+  if (t.includes("mpeg") || t.includes("mp3")) return "nota.mp3";
+  if (t.includes("ogg")) return "nota.ogg";
+  if (t.includes("wav")) return "nota.wav";
+  return "nota.webm";
+}
+
 export async function transcribirAudio(blob: Blob): Promise<string | null> {
+  if (blob.size < 800) return null;
   const form = new FormData();
-  const nombre = blob.type.includes("mp4") ? "nota.m4a" : "nota.webm";
-  form.append("audio", blob, nombre);
+  form.append("audio", blob, nombreArchivoAudio(blob.type));
   try {
     const res = await fetchConTiempo("/api/transcribir", { method: "POST", body: form }, 16_000);
     if (!res.ok) return null;
@@ -96,7 +151,9 @@ export function transcribirEnNavegador(): Promise<string> {
 }
 
 function mimeGrabacion() {
-  const tipos = ["audio/webm;codecs=opus", "audio/webm", "audio/mp4"];
+  const tipos = esIOS()
+    ? ["audio/mp4", "audio/aac", "audio/webm"]
+    : ["audio/webm;codecs=opus", "audio/webm", "audio/mp4"];
   return tipos.find((t) => typeof MediaRecorder !== "undefined" && MediaRecorder.isTypeSupported(t)) ?? "";
 }
 
@@ -146,19 +203,32 @@ function escucharEnVivo(): { texto: () => string; parar: () => void } {
   };
 }
 
-/** Graba hasta que llamas a detener(), o hasta un silencio tras oírte. */
+async function pedirMicrofono() {
+  try {
+    return await navigator.mediaDevices.getUserMedia({
+      audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true },
+    });
+  } catch {
+    return navigator.mediaDevices.getUserMedia({ audio: true });
+  }
+}
+
+/** Graba hasta que llamas a detener(), o hasta un silencio tras oírte (en escritorio). */
 export async function iniciarGrabacion(alCortar?: () => void): Promise<GrabacionVoz> {
-  const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+  const stream = await pedirMicrofono();
   const mime = mimeGrabacion();
   const rec = mime ? new MediaRecorder(stream, { mimeType: mime }) : new MediaRecorder(stream);
   const trozos: Blob[] = [];
   rec.ondataavailable = (e) => {
     if (e.data.size > 0) trozos.push(e.data);
   };
-  rec.start();
-  const vivo = escucharEnVivo();
+  const movil = esMovil();
+  if (movil) rec.start(200);
+  else rec.start();
+  // En el móvil, reconocimiento + grabación a la vez suelen pelearse por el micrófono.
+  const vivo = movil ? { texto: () => "", parar: () => undefined } : escucharEnVivo();
 
-  const AudioCtx = window.AudioContext || (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+  const AudioCtx = ctorAudioContext();
   let audioCtx: AudioContext | null = null;
   let cerrado = false;
   const inicio = Date.now();
@@ -166,7 +236,13 @@ export async function iniciarGrabacion(alCortar?: () => void): Promise<Grabacion
   let ultimoSonido = Date.now();
 
   if (AudioCtx) {
-    audioCtx = new AudioCtx();
+    audioCtx = ctxAudio && ctxAudio.state !== "closed" ? ctxAudio : new AudioCtx();
+    ctxAudio = audioCtx;
+    try {
+      await audioCtx.resume();
+    } catch {
+      /* sin gesto extra */
+    }
     const fuente = audioCtx.createMediaStreamSource(stream);
     const analizador = audioCtx.createAnalyser();
     analizador.fftSize = 2048;
@@ -182,17 +258,19 @@ export async function iniciarGrabacion(alCortar?: () => void): Promise<Grabacion
         suma += v * v;
       }
       const rms = Math.sqrt(suma / datos.length);
-      if (rms > 0.025) {
+      if (rms > (movil ? 0.02 : 0.025)) {
         huboVoz = true;
         ultimoSonido = Date.now();
       }
       const ahora = Date.now();
-      if (huboVoz && ahora - ultimoSonido > 1600 && ahora - inicio > 1200) {
+      const silencio = movil ? 2200 : 1600;
+      const minimo = movil ? 1800 : 1200;
+      if (huboVoz && ahora - ultimoSonido > silencio && ahora - inicio > minimo) {
         cerrado = true;
         alCortar?.();
         return;
       }
-      if (!huboVoz && ahora - inicio > 12000) {
+      if (!huboVoz && ahora - inicio > (movil ? 16000 : 12000)) {
         cerrado = true;
         alCortar?.();
         return;
@@ -202,14 +280,14 @@ export async function iniciarGrabacion(alCortar?: () => void): Promise<Grabacion
     requestAnimationFrame(tick);
   }
 
-  const blobDeTrozo = () => new Blob(trozos, { type: (rec.mimeType || "audio/webm").split(";")[0] });
+  const blobDeTrozo = () =>
+    new Blob(trozos, { type: (rec.mimeType || mime || "audio/webm").split(";")[0] });
 
   return {
     detener: () =>
       new Promise((resolve, reject) => {
         cerrado = true;
         vivo.parar();
-        void audioCtx?.close().catch(() => undefined);
         const listo = (blob: Blob) => {
           resolve({ blob, dicho: vivo.texto() });
         };
@@ -220,7 +298,7 @@ export async function iniciarGrabacion(alCortar?: () => void): Promise<Grabacion
             return;
           }
           listo(blobDeTrozo());
-        }, 2_000);
+        }, 2_500);
         rec.onstop = () => {
           window.clearTimeout(tope);
           stream.getTracks().forEach((t) => t.stop());
@@ -239,6 +317,11 @@ export async function iniciarGrabacion(alCortar?: () => void): Promise<Grabacion
           }
           listo(blobDeTrozo());
           return;
+        }
+        try {
+          rec.requestData();
+        } catch {
+          /* Safari antiguo */
         }
         rec.stop();
       }),
@@ -271,15 +354,24 @@ async function hablarConOpenAi(texto: string) {
     const blob = await res.blob();
     if (blob.size < 80) return false;
     const url = URL.createObjectURL(blob);
-    const audio = new Audio(url);
-    audioActual = audio;
-    await audio.play();
+    const el = prepararAltavoz() ?? new Audio();
+    el.setAttribute("playsinline", "true");
+    audioActual = el;
+    el.src = url;
+    el.muted = false;
+    el.volume = 1;
+    try {
+      el.load();
+    } catch {
+      /* algunos móviles no necesitan load */
+    }
+    await el.play();
     await new Promise<void>((resolve) => {
-      audio.onended = () => resolve();
-      audio.onerror = () => resolve();
+      el.onended = () => resolve();
+      el.onerror = () => resolve();
     });
     URL.revokeObjectURL(url);
-    if (audioActual === audio) audioActual = null;
+    if (audioActual === el) audioActual = null;
     return true;
   } catch {
     return false;
@@ -301,7 +393,6 @@ export function silenciar() {
   if (sintesisVozDisponible()) window.speechSynthesis.cancel();
   if (audioActual) {
     audioActual.pause();
-    audioActual.src = "";
     audioActual = null;
   }
 }

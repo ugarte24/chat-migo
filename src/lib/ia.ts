@@ -62,7 +62,7 @@ export async function interpretarConIa(texto: string): Promise<Interpretacion> {
 
 function archivoWhisper(audio: ArrayBuffer, mime: string) {
   const tipo = (mime.split(";")[0] ?? "audio/webm").trim().toLowerCase();
-  if (tipo.includes("mp4") || tipo.includes("m4a")) {
+  if (tipo.includes("mp4") || tipo.includes("m4a") || tipo.includes("aac") || tipo.includes("caf")) {
     return { blob: new Blob([audio], { type: "audio/mp4" }), nombre: "nota.m4a" };
   }
   if (tipo.includes("mpeg") || tipo.includes("mp3")) {
@@ -77,7 +77,7 @@ function archivoWhisper(audio: ArrayBuffer, mime: string) {
 export async function transcribirWhisper(audio: ArrayBuffer, mime = "audio/webm"): Promise<string | null> {
   const clave = claveOpenAi();
   if (!clave) return null;
-  if (audio.byteLength < 1500) return null;
+  if (audio.byteLength < 800) return null;
   const { blob, nombre } = archivoWhisper(audio, mime);
   const cuerpo = new FormData();
   cuerpo.append("file", blob, nombre);

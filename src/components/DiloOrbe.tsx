@@ -21,7 +21,7 @@ export function DiloOrbe({
       type="button"
       onClick={onActivar}
       aria-label={etiqueta}
-      className="relative flex size-[min(78vw,24rem)] items-center justify-center rounded-full bg-transparent"
+      className="relative flex size-[min(78vw,24rem)] touch-manipulation items-center justify-center rounded-full bg-transparent"
     >
       <span className="dilo-halo" data-estado={estado} aria-hidden />
       <span className="dilo-anillo dilo-anillo-a" data-estado={estado} aria-hidden />

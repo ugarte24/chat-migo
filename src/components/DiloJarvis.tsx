@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { Link, useNavigate } from "@tanstack/react-router";
-import { LogOut, Mic, Settings, Shield, Volume2, VolumeX } from "lucide-react";
+import { LogOut, Mic, Send, Settings, Shield, Volume2, VolumeX } from "lucide-react";
 import { DiloOrbe, type EstadoOrbe } from "@/components/DiloOrbe";
 import { useAuth } from "@/lib/auth";
 import { useAsistente } from "@/lib/store";
@@ -10,6 +10,7 @@ import {
   silenciar,
   transcribirAudio,
   desbloquearAudio,
+  esMovil,
 } from "@/lib/voz";
 
 const ESTADO_TEXTO: Record<EstadoOrbe, string> = {
@@ -32,6 +33,8 @@ export function Dilo() {
   const detenerRef = useRef<(() => Promise<{ blob: Blob; dicho: string }>) | null>(null);
   const cortandoRef = useRef(false);
   const hayMic = microfonoDisponible();
+  const enMovil = esMovil();
+  const hayTexto = texto.trim().length > 0;
 
   const visibles = mensajes.filter((m) => m.tipo !== "proceso" && m.tipo !== "analisis");
   const ultimoAsistente = [...visibles].reverse().find((m) => m.autor === "asistente");
@@ -57,13 +60,19 @@ export function Dilo() {
 
   const pie = useMemo(() => {
     if (aviso) return aviso;
-    if (grabando) return "Te escucho. Habla ahora; cuando pares, te respondo.";
+    if (grabando) {
+      return enMovil
+        ? "Te escucho. Pulsa otra vez el orbe o el micrófono cuando termines."
+        : "Te escucho. Habla ahora; cuando pares, te respondo.";
+    }
     if (transcribiendo) return "Entendiendo lo que dijiste…";
     if (pensando) return "Pensando…";
     if (hablando && ultimoAsistente && ultimoAsistente.id !== "msg-welcome") return ultimoAsistente.texto;
     if (ultimoAsistente && ultimoAsistente.id !== "msg-welcome") return ultimoAsistente.texto;
-    return "Pulsa el orbe o el micrófono y habla. Dilo te responde al callarte.";
-  }, [aviso, grabando, hablando, pensando, transcribiendo, ultimoAsistente]);
+    return enMovil
+      ? "Pulsa el orbe, habla y pulsa otra vez para enviar. También puedes escribir y tocar enviar."
+      : "Pulsa el orbe o el micrófono y habla. Dilo te responde al callarte.";
+  }, [aviso, enMovil, grabando, hablando, pensando, transcribiendo, ultimoAsistente]);
 
   const enviar = (valor: string, tipo: "texto" | "voz" = "texto") => {
     const limpio = valor.trim();
@@ -88,8 +97,13 @@ export function Dilo() {
     try {
       const { blob, dicho } = await detener();
       const transcrito = dicho || (await transcribirAudio(blob));
-      if (transcrito) enviar(transcrito, "voz");
-      else setAviso("No te entendí. Pulsa el orbe, espera el sonido y habla más cerca, o escribe abajo.");
+      if (transcrito) {
+        setAviso(null);
+        enviarMensaje(transcrito, "voz");
+        setTexto("");
+      } else {
+        setAviso("No te entendí. Pulsa el orbe, habla y pulsa otra vez para enviar, o escribe abajo.");
+      }
     } catch {
       setAviso("No pude usar el micrófono. Permite el acceso o escribe abajo.");
     } finally {
@@ -209,7 +223,7 @@ export function Dilo() {
         </p>
       </div>
 
-      <div className="relative z-10 mx-auto w-full max-w-xl px-4 pb-7">
+      <div className="relative z-10 mx-auto w-full max-w-xl px-4 pb-[max(1.75rem,env(safe-area-inset-bottom))]">
         <form
           onSubmit={(e) => {
             e.preventDefault();
@@ -222,24 +236,36 @@ export function Dilo() {
             onChange={(e) => setTexto(e.target.value)}
             placeholder="Pregúntale a Dilo"
             aria-label="Escribirle a Dilo"
+            enterKeyHint="send"
             disabled={pensando || grabando || transcribiendo}
             className="h-12 flex-1 border-0 bg-transparent px-4 text-[16px] text-[#202124] outline-none placeholder:text-[#80868b]"
           />
-          <button
-            type="button"
-            aria-label={grabando ? "Enviar voz" : "Hablar"}
-            disabled={!hayMic && !grabando}
-            onClick={() => void pulsarOrbe()}
-            className={
-              grabando
-                ? "inline-flex size-12 shrink-0 items-center justify-center rounded-full bg-[#ea4335] text-white shadow-[0_0_0_8px_rgb(234_67_53/0.18)] transition-transform duration-300"
-                : transcribiendo || pensando
-                  ? "inline-flex size-12 shrink-0 animate-pulse items-center justify-center rounded-full bg-[#fbbc05] text-[#202124]"
-                  : "inline-flex size-12 shrink-0 items-center justify-center rounded-full bg-[#1a73e8] text-white transition hover:scale-105 hover:bg-[#1557b0]"
-            }
-          >
-            <Mic className={`size-5 ${grabando ? "animate-pulse" : ""}`} />
-          </button>
+          {hayTexto && !grabando ? (
+            <button
+              type="submit"
+              aria-label="Enviar"
+              disabled={pensando || transcribiendo}
+              className="inline-flex size-12 shrink-0 touch-manipulation items-center justify-center rounded-full bg-[#1a73e8] text-white transition hover:bg-[#1557b0]"
+            >
+              <Send className="size-5" />
+            </button>
+          ) : (
+            <button
+              type="button"
+              aria-label={grabando ? "Enviar voz" : "Hablar"}
+              disabled={!hayMic && !grabando}
+              onClick={() => void pulsarOrbe()}
+              className={
+                grabando
+                  ? "inline-flex size-12 shrink-0 touch-manipulation items-center justify-center rounded-full bg-[#ea4335] text-white shadow-[0_0_0_8px_rgb(234_67_53/0.18)]"
+                  : transcribiendo || pensando
+                    ? "inline-flex size-12 shrink-0 animate-pulse touch-manipulation items-center justify-center rounded-full bg-[#fbbc05] text-[#202124]"
+                    : "inline-flex size-12 shrink-0 touch-manipulation items-center justify-center rounded-full bg-[#1a73e8] text-white"
+              }
+            >
+              <Mic className={`size-5 ${grabando ? "animate-pulse" : ""}`} />
+            </button>
+          )}
         </form>
       </div>
     </div>
