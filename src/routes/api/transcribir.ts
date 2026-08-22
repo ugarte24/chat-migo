@@ -11,9 +11,12 @@ export const Route = createFileRoute("/api/transcribir")({
           return Response.json({ error: "Falta el audio" }, { status: 400 });
         }
         const buffer = await archivo.arrayBuffer();
-        const texto = await transcribirWhisper(buffer, archivo.type || "audio/webm");
-        if (!texto) return Response.json({ error: "No se pudo transcribir" }, { status: 501 });
-        return Response.json({ texto });
+        const resultado = await transcribirWhisper(buffer, archivo.type || "audio/webm");
+        if (resultado.cuota) {
+          return Response.json({ error: "cuota", texto: "" }, { status: 429 });
+        }
+        if (!resultado.texto) return Response.json({ error: "No se pudo transcribir" }, { status: 501 });
+        return Response.json({ texto: resultado.texto });
       },
     },
   },

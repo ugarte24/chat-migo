@@ -98,17 +98,18 @@ function nombreArchivoAudio(tipo: string) {
   return "nota.webm";
 }
 
-export async function transcribirAudio(blob: Blob): Promise<string | null> {
-  if (blob.size < 800) return null;
+export async function transcribirAudio(blob: Blob): Promise<{ texto: string | null; cuota: boolean }> {
+  if (blob.size < 800) return { texto: null, cuota: false };
   const form = new FormData();
   form.append("audio", blob, nombreArchivoAudio(blob.type));
   try {
     const res = await fetchConTiempo("/api/transcribir", { method: "POST", body: form }, 16_000);
-    if (!res.ok) return null;
+    if (res.status === 429) return { texto: null, cuota: true };
+    if (!res.ok) return { texto: null, cuota: false };
     const cuerpo = (await res.json().catch(() => null)) as { texto?: string } | null;
-    return cuerpo?.texto?.trim() || null;
+    return { texto: cuerpo?.texto?.trim() || null, cuota: false };
   } catch {
-    return null;
+    return { texto: null, cuota: false };
   }
 }
 
@@ -203,6 +204,88 @@ function escucharEnVivo(): { texto: () => string; parar: () => void } {
   };
 }
 
+function iniciarSoloReconocimiento(alCortar?: () => void): GrabacionVoz {
+  const Ctor = ctorReconocimiento();
+  if (!Ctor) {
+    return {
+      detener: async () => ({ blob: new Blob(), dicho: "" }),
+    };
+  }
+  const rec = new Ctor();
+  rec.lang = "es-ES";
+  rec.interimResults = true;
+  rec.maxAlternatives = 1;
+  rec.continuous = true;
+  let dicho = "";
+  let interino = "";
+  let cerrado = false;
+  let silencioId = 0;
+  const topeId = window.setTimeout(() => {
+    if (!cerrado) alCortar?.();
+  }, 16_000);
+
+  const programarCorte = () => {
+    window.clearTimeout(silencioId);
+    silencioId = window.setTimeout(() => {
+      if (!cerrado && (dicho || interino)) alCortar?.();
+    }, 1600);
+  };
+
+  rec.onresult = (evento) => {
+    let finales = "";
+    let provisional = "";
+    for (let i = evento.resultIndex ?? 0; i < evento.results.length; i++) {
+      const pieza = evento.results[i];
+      const t = pieza?.[0]?.transcript?.trim() ?? "";
+      if (!t) continue;
+      if (pieza?.isFinal) finales = finales ? `${finales} ${t}` : t;
+      else provisional = t;
+    }
+    if (finales) dicho = dicho ? `${dicho} ${finales}` : finales;
+    interino = provisional;
+    programarCorte();
+  };
+  rec.onerror = () => undefined;
+  rec.onend = () => {
+    if (cerrado) return;
+    try {
+      rec.start();
+    } catch {
+      if (dicho || interino) alCortar?.();
+    }
+  };
+  rec.start();
+
+  return {
+    detener: () =>
+      new Promise((resolve) => {
+        cerrado = true;
+        window.clearTimeout(silencioId);
+        window.clearTimeout(topeId);
+        try {
+          rec.stop();
+        } catch {
+          /* ya cerrado */
+        }
+        window.setTimeout(() => {
+          resolve({ blob: new Blob(), dicho: (dicho || interino).trim() });
+        }, 180);
+      }),
+  };
+}
+
+/** Escucha con el reconocimiento del navegador (sin Whisper). Si no hay, graba audio. */
+export async function iniciarGrabacion(alCortar?: () => void): Promise<GrabacionVoz> {
+  if (ctorReconocimiento()) {
+    try {
+      return iniciarSoloReconocimiento(alCortar);
+    } catch {
+      /* algunos móviles fallan el reconocimiento; grabamos audio */
+    }
+  }
+  return iniciarGrabacionArchivo(alCortar);
+}
+
 async function pedirMicrofono() {
   try {
     return await navigator.mediaDevices.getUserMedia({
@@ -213,8 +296,8 @@ async function pedirMicrofono() {
   }
 }
 
-/** Graba hasta que llamas a detener(), o hasta un silencio tras oírte (en escritorio). */
-export async function iniciarGrabacion(alCortar?: () => void): Promise<GrabacionVoz> {
+/** Graba audio para Whisper si el navegador no reconoce voz. */
+async function iniciarGrabacionArchivo(alCortar?: () => void): Promise<GrabacionVoz> {
   const stream = await pedirMicrofono();
   const mime = mimeGrabacion();
   const rec = mime ? new MediaRecorder(stream, { mimeType: mime }) : new MediaRecorder(stream);

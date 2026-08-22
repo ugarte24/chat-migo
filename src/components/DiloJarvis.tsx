@@ -96,11 +96,15 @@ export function Dilo() {
     setAviso(null);
     try {
       const { blob, dicho } = await detener();
-      const transcrito = dicho || (await transcribirAudio(blob));
+      const deNavegador = dicho.trim();
+      const deWhisper = deNavegador ? { texto: null, cuota: false } : await transcribirAudio(blob);
+      const transcrito = deNavegador || deWhisper.texto;
       if (transcrito) {
         setAviso(null);
         enviarMensaje(transcrito, "voz");
         setTexto("");
+      } else if (deWhisper.cuota) {
+        setAviso("Se acabó el crédito de ChatGPT. Escribe el mensaje, o usa Chrome y permite el micrófono.");
       } else {
         setAviso("No te entendí. Pulsa el orbe, habla y pulsa otra vez para enviar, o escribe abajo.");
       }

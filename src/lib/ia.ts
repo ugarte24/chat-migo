@@ -74,10 +74,13 @@ function archivoWhisper(audio: ArrayBuffer, mime: string) {
   return { blob: new Blob([audio], { type: "audio/webm" }), nombre: "nota.webm" };
 }
 
-export async function transcribirWhisper(audio: ArrayBuffer, mime = "audio/webm"): Promise<string | null> {
+export async function transcribirWhisper(
+  audio: ArrayBuffer,
+  mime = "audio/webm",
+): Promise<{ texto: string | null; cuota: boolean }> {
   const clave = claveOpenAi();
-  if (!clave) return null;
-  if (audio.byteLength < 800) return null;
+  if (!clave) return { texto: null, cuota: false };
+  if (audio.byteLength < 800) return { texto: null, cuota: false };
   const { blob, nombre } = archivoWhisper(audio, mime);
   const cuerpo = new FormData();
   cuerpo.append("file", blob, nombre);
@@ -91,16 +94,20 @@ export async function transcribirWhisper(audio: ArrayBuffer, mime = "audio/webm"
       signal: AbortSignal.timeout(12_000),
       body: cuerpo,
     });
+    if (respuesta.status === 429) {
+      console.error("whisper 429 cuota agotada");
+      return { texto: null, cuota: true };
+    }
     if (!respuesta.ok) {
       const detalle = await respuesta.text().catch(() => "");
       console.error("whisper", respuesta.status, detalle.slice(0, 240));
-      return null;
+      return { texto: null, cuota: false };
     }
     const json = (await respuesta.json()) as { text?: string };
-    return json.text?.trim() || null;
+    return { texto: json.text?.trim() || null, cuota: false };
   } catch (error) {
     console.error("whisper", error instanceof Error ? error.message : "error");
-    return null;
+    return { texto: null, cuota: false };
   }
 }
 
