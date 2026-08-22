@@ -347,7 +347,7 @@ export function Dilo() {
           {ESTADO_TEXTO[estado]}
         </p>
         <p
-          key={pie}
+          key={grabando || transcribiendo || pensando || hablando ? estado : pie}
           className={`mt-2 max-w-md text-center text-[15px] leading-6 ${
             grabando ? "text-[#2563eb]" : "text-[#5f6368]"
           }`}

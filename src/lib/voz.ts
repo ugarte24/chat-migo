@@ -6,7 +6,9 @@ const SILENCIO =
 let audioActual: HTMLAudioElement | null = null;
 let altavoz: HTMLAudioElement | null = null;
 let ctxAudio: AudioContext | null = null;
+let ctxCaptura: AudioContext | null = null;
 let fuenteActual: AudioBufferSourceNode | null = null;
+let gananciaActual: GainNode | null = null;
 let audioDesbloqueado = false;
 let generacionHabla = 0;
 let hablaEnCurso: Promise<void> = Promise.resolve();
@@ -55,6 +57,10 @@ async function contextoListo() {
   return ctxAudio;
 }
 
+function gananciaVoz() {
+  return esMovil() ? 2.8 : 1.9;
+}
+
 function claveHablar(texto: string, vozId?: string) {
   return `${vozId ?? ""}:${texto}`;
 }
@@ -88,35 +94,40 @@ export async function prefetchHablar(texto: string, vozId?: string) {
 }
 
 async function reproducirBuffer(buf: ArrayBuffer) {
-  const ctx = await contextoListo();
-  if (ctx) {
-    try {
-      const decoded = await ctx.decodeAudioData(buf.slice(0));
-      fuenteActual?.stop();
-      const fuente = ctx.createBufferSource();
-      fuente.buffer = decoded;
-      fuente.connect(ctx.destination);
-      fuenteActual = fuente;
-      await new Promise<void>((resolve) => {
-        fuente.onended = () => resolve();
-        try {
-          fuente.start();
-        } catch {
-          resolve();
-        }
-      });
-      if (fuenteActual === fuente) fuenteActual = null;
-      return true;
-    } catch {
-      /* algunos navegadores no decodifican el mp3; caemos al elemento audio */
-    }
+  await pararSilencio();
+  if (await reproducirEnElemento(buf)) return true;
+  return reproducirEnContexto(buf);
+}
+
+async function pararSilencio() {
+  const el = altavoz;
+  if (!el) return;
+  try {
+    el.loop = false;
+    el.pause();
+  } catch {
+    /* ya parado */
   }
-  const url = URL.createObjectURL(new Blob([buf], { type: "audio/mpeg" }));
-  const el = prepararAltavoz() ?? new Audio();
-  el.loop = false;
-  el.src = url;
   el.muted = false;
   el.volume = 1;
+}
+
+async function reproducirEnElemento(buf: ArrayBuffer) {
+  const url = URL.createObjectURL(new Blob([buf], { type: "audio/mpeg" }));
+  const el = new Audio();
+  el.setAttribute("playsinline", "true");
+  el.setAttribute("webkit-playsinline", "true");
+  el.preload = "auto";
+  el.loop = false;
+  el.muted = false;
+  el.volume = 1;
+  const conSalida = el as HTMLMediaElement & { setSinkId?: (id: string) => Promise<void> };
+  try {
+    await conSalida.setSinkId?.("default");
+  } catch {
+    /* el navegador no deja elegir salida */
+  }
+  el.src = url;
   audioActual = el;
   try {
     await el.play();
@@ -135,7 +146,45 @@ async function reproducirBuffer(buf: ArrayBuffer) {
   }
 }
 
+async function reproducirEnContexto(buf: ArrayBuffer) {
+  const ctx = await contextoListo();
+  if (!ctx) return false;
+  try {
+    const decoded = await ctx.decodeAudioData(buf.slice(0));
+    try {
+      fuenteActual?.stop();
+    } catch {
+      /* ya parada */
+    }
+    const fuente = ctx.createBufferSource();
+    const ganancia = ctx.createGain();
+    ganancia.gain.value = gananciaVoz();
+    fuente.buffer = decoded;
+    fuente.connect(ganancia);
+    ganancia.connect(ctx.destination);
+    fuenteActual = fuente;
+    gananciaActual = ganancia;
+    await new Promise<void>((resolve) => {
+      fuente.onended = () => resolve();
+      try {
+        fuente.start();
+      } catch {
+        resolve();
+      }
+    });
+    if (fuenteActual === fuente) fuenteActual = null;
+    if (gananciaActual === ganancia) gananciaActual = null;
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 async function mantenerAltavozVivo() {
+  if (!esIOS()) {
+    await pararSilencio();
+    return;
+  }
   const el = prepararAltavoz();
   if (!el || !audioDesbloqueado) return;
   if (audioActual === el && !el.paused && el.src && !el.src.startsWith("data:")) return;
@@ -156,11 +205,16 @@ export async function desbloquearAudio() {
   const el = prepararAltavoz();
   try {
     if (el) {
-      el.loop = true;
-      el.src = SILENCIO;
       el.muted = false;
-      el.volume = 0.01;
+      el.volume = esIOS() ? 0.01 : 1;
+      el.loop = esIOS();
+      el.src = SILENCIO;
       await el.play();
+      if (!esIOS()) {
+        el.pause();
+        el.loop = false;
+        el.volume = 1;
+      }
     }
     audioDesbloqueado = true;
   } catch {
@@ -267,6 +321,99 @@ export interface GrabacionVoz {
   detener: () => Promise<{ blob: Blob; dicho: string }>;
 }
 
+function compactarRepeticiones(texto: string) {
+  let palabras = texto.replace(/\s+/g, " ").trim().split(" ").filter(Boolean);
+  if (palabras.length < 2) return palabras.join(" ");
+
+  for (let n = Math.min(16, Math.floor(palabras.length / 2)); n >= 2; n--) {
+    const res: string[] = [];
+    let i = 0;
+    while (i < palabras.length) {
+      if (i + 2 * n <= palabras.length) {
+        const a = palabras.slice(i, i + n).join(" ");
+        const b = palabras.slice(i + n, i + 2 * n).join(" ");
+        if (a === b) {
+          res.push(...palabras.slice(i, i + n));
+          i += 2 * n;
+          while (i + n <= palabras.length && palabras.slice(i, i + n).join(" ") === a) i += n;
+          continue;
+        }
+      }
+      res.push(palabras[i]!);
+      i += 1;
+    }
+    palabras = res;
+  }
+
+  const res: string[] = [];
+  for (let i = 0; i < palabras.length; ) {
+    const w = palabras[i]!;
+    let j = i + 1;
+    while (j < palabras.length && palabras[j] === w) j++;
+    const veces = j - i;
+    if (veces >= 3 || (veces === 2 && w.length >= 5)) res.push(w);
+    else for (let k = 0; k < veces; k++) res.push(w);
+    i = j;
+  }
+  return res.join(" ");
+}
+
+function unirSinSolape(anterior: string, siguiente: string) {
+  const a = compactarRepeticiones(anterior);
+  const b = compactarRepeticiones(siguiente);
+  if (!b) return a;
+  if (!a) return b;
+  if (a === b || b.startsWith(a)) return b;
+  if (a.endsWith(b) || a.includes(b)) return a;
+  const al = a.toLowerCase();
+  const bl = b.toLowerCase();
+  const tope = Math.min(a.length, b.length);
+  for (let n = tope; n >= 10; n--) {
+    if (al.slice(-n) === bl.slice(0, n)) {
+      return compactarRepeticiones(`${a}${b.slice(n)}`);
+    }
+  }
+  return compactarRepeticiones(`${a} ${b}`);
+}
+
+function partesDeResultado(evento: { results: ArrayLike<ResultadoVoz> }) {
+  let finales = "";
+  let provisional = "";
+  for (let i = 0; i < evento.results.length; i++) {
+    const pieza = evento.results[i];
+    const t = pieza?.[0]?.transcript?.trim() ?? "";
+    if (!t) continue;
+    if (pieza?.isFinal) finales = finales ? `${finales} ${t}` : t;
+    else provisional = provisional ? `${provisional} ${t}` : t;
+  }
+  return {
+    finales: compactarRepeticiones(finales),
+    provisional: compactarRepeticiones(provisional),
+  };
+}
+
+function crearAcumuladorVoz() {
+  let base = "";
+  let sesion = "";
+  let interino = "";
+  return {
+    aplicar(evento: { results: ArrayLike<ResultadoVoz> }) {
+      const { finales, provisional } = partesDeResultado(evento);
+      sesion = finales;
+      interino = provisional;
+      return compactarRepeticiones(unirSinSolape(unirSinSolape(base, sesion), interino));
+    },
+    comprometer() {
+      base = unirSinSolape(base, sesion);
+      sesion = "";
+      interino = "";
+    },
+    texto() {
+      return compactarRepeticiones(unirSinSolape(unirSinSolape(base, sesion), interino));
+    },
+  };
+}
+
 function escucharEnVivo(): { texto: () => string; parar: () => void } {
   const Ctor = ctorReconocimiento();
   if (!Ctor) return { texto: () => "", parar: () => undefined };
@@ -276,20 +423,9 @@ function escucharEnVivo(): { texto: () => string; parar: () => void } {
   rec.interimResults = true;
   rec.maxAlternatives = 1;
   rec.continuous = true;
-  let dicho = "";
-  let interino = "";
+  const acumulado = crearAcumuladorVoz();
   rec.onresult = (evento) => {
-    let finales = "";
-    let provisional = "";
-    for (let i = evento.resultIndex ?? 0; i < evento.results.length; i++) {
-      const pieza = evento.results[i];
-      const t = pieza?.[0]?.transcript?.trim() ?? "";
-      if (!t) continue;
-      if (pieza?.isFinal) finales = finales ? `${finales} ${t}` : t;
-      else provisional = t;
-    }
-    if (finales) dicho = dicho ? `${dicho} ${finales}` : finales;
-    interino = provisional;
+    acumulado.aplicar(evento);
   };
   rec.onerror = () => undefined;
   try {
@@ -298,7 +434,7 @@ function escucharEnVivo(): { texto: () => string; parar: () => void } {
     return { texto: () => "", parar: () => undefined };
   }
   return {
-    texto: () => (dicho || interino).trim(),
+    texto: () => acumulado.texto(),
     parar: () => {
       try {
         rec.stop();
@@ -325,8 +461,7 @@ function iniciarSoloReconocimiento(
   rec.interimResults = true;
   rec.maxAlternatives = 1;
   rec.continuous = true;
-  let dicho = "";
-  let interino = "";
+  const acumulado = crearAcumuladorVoz();
   let cerrado = false;
   let silencioId = 0;
   const topeId = continuo
@@ -338,23 +473,13 @@ function iniciarSoloReconocimiento(
   const programarCorte = () => {
     window.clearTimeout(silencioId);
     silencioId = window.setTimeout(() => {
-      if (!cerrado && (dicho || interino)) alCortar?.();
+      if (!cerrado && acumulado.texto()) alCortar?.();
     }, continuo ? 1800 : 1600);
   };
 
   rec.onresult = (evento) => {
-    let finales = "";
-    let provisional = "";
-    for (let i = evento.resultIndex ?? 0; i < evento.results.length; i++) {
-      const pieza = evento.results[i];
-      const t = pieza?.[0]?.transcript?.trim() ?? "";
-      if (!t) continue;
-      if (pieza?.isFinal) finales = finales ? `${finales} ${t}` : t;
-      else provisional = t;
-    }
-    if (finales) dicho = dicho ? `${dicho} ${finales}` : finales;
-    interino = provisional;
-    onTexto?.((dicho || interino).trim());
+    const texto = acumulado.aplicar(evento);
+    onTexto?.(texto);
     programarCorte();
   };
   rec.onerror = (evento) => {
@@ -363,10 +488,11 @@ function iniciarSoloReconocimiento(
   };
   rec.onend = () => {
     if (cerrado) return;
+    acumulado.comprometer();
     try {
       rec.start();
     } catch {
-      if (dicho || interino || continuo) alCortar?.();
+      if (acumulado.texto() || continuo) alCortar?.();
     }
   };
   rec.start();
@@ -383,7 +509,7 @@ function iniciarSoloReconocimiento(
           /* ya cerrado */
         }
         window.setTimeout(() => {
-          resolve({ blob: new Blob(), dicho: (dicho || interino).trim() });
+          resolve({ blob: new Blob(), dicho: acumulado.texto() });
         }, 180);
       }),
   };
@@ -433,23 +559,24 @@ async function iniciarGrabacionArchivo(alCortar?: () => void, continuo = false):
 
   const AudioCtx = ctorAudioContext();
   let audioCtx: AudioContext | null = null;
+  let fuenteMic: MediaStreamAudioSourceNode | null = null;
   let cerrado = false;
   const inicio = Date.now();
   let huboVoz = false;
   let ultimoSonido = Date.now();
 
   if (AudioCtx) {
-    audioCtx = ctxAudio && ctxAudio.state !== "closed" ? ctxAudio : new AudioCtx();
-    ctxAudio = audioCtx;
+    ctxCaptura = ctxCaptura && ctxCaptura.state !== "closed" ? ctxCaptura : new AudioCtx();
+    audioCtx = ctxCaptura;
     try {
       await audioCtx.resume();
     } catch {
       /* sin gesto extra */
     }
-    const fuente = audioCtx.createMediaStreamSource(stream);
+    fuenteMic = audioCtx.createMediaStreamSource(stream);
     const analizador = audioCtx.createAnalyser();
     analizador.fftSize = 2048;
-    fuente.connect(analizador);
+    fuenteMic.connect(analizador);
     const datos = new Uint8Array(analizador.fftSize);
 
     const tick = () => {
@@ -491,6 +618,12 @@ async function iniciarGrabacionArchivo(alCortar?: () => void, continuo = false):
       new Promise((resolve, reject) => {
         cerrado = true;
         vivo.parar();
+        try {
+          fuenteMic?.disconnect();
+        } catch {
+          /* ya suelta */
+        }
+        fuenteMic = null;
         const listo = (blob: Blob) => {
           resolve({ blob, dicho: vivo.texto() });
         };
@@ -593,6 +726,7 @@ async function hablarEnNavegador(texto: string) {
     utterance.lang = "es-VE";
     utterance.rate = 1.04;
     utterance.pitch = 1;
+    utterance.volume = 1;
     const voces = window.speechSynthesis.getVoices();
     const voz =
       voces.find((v) => v.lang.toLowerCase().startsWith("es-ve")) ||
@@ -616,6 +750,7 @@ export function silenciar() {
     /* ya parada */
   }
   fuenteActual = null;
+  gananciaActual = null;
   if (audioActual) {
     audioActual.pause();
     audioActual = null;
