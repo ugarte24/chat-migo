@@ -12,6 +12,7 @@ import {
   transcribirAudio,
   desbloquearAudio,
   esMovil,
+  hablar,
 } from "@/lib/voz";
 
 const ESTADO_TEXTO: Record<EstadoOrbe, string> = {
@@ -52,9 +53,30 @@ export function Dilo() {
 
   const visibles = mensajes.filter((m) => m.tipo !== "proceso" && m.tipo !== "analisis");
   const ultimoAsistente = [...visibles].reverse().find((m) => m.autor === "asistente");
+  const hayConversacion = visibles.some((m) => m.autor === "usuario");
+  const saludoTexto = !hayConversacion
+    ? (visibles.find((m) => m.id === "msg-welcome")?.texto ?? ultimoAsistente?.texto)
+    : undefined;
+  const entradaDichaRef = useRef(false);
+  const mensajeAlEntrarRef = useRef<string | undefined>(undefined);
+  if (mensajeAlEntrarRef.current === undefined && ultimoAsistente) {
+    mensajeAlEntrarRef.current = ultimoAsistente.id;
+  }
 
   useEffect(() => {
-    if (pensando || grabando || transcribiendo || !ultimoAsistente || ultimoAsistente.id === "msg-welcome") {
+    const prime = () => {
+      void desbloquearAudio();
+    };
+    window.addEventListener("pointerdown", prime, { once: true });
+    return () => window.removeEventListener("pointerdown", prime);
+  }, []);
+
+  useEffect(() => {
+    if (pensando || grabando || transcribiendo || !ultimoAsistente) {
+      setHablando(false);
+      return;
+    }
+    if (ultimoAsistente.id === mensajeAlEntrarRef.current) {
       setHablando(false);
       return;
     }
@@ -91,10 +113,11 @@ export function Dilo() {
     if (transcribiendo || pensando) {
       return dichoVivo ? `Te oí: “${dichoVivo}”` : "Un momento, lo estoy viendo…";
     }
-    if (hablando && ultimoAsistente && ultimoAsistente.id !== "msg-welcome") return ultimoAsistente.texto;
+    if (hablando && ultimoAsistente) return ultimoAsistente.texto;
+    if (saludoTexto) return saludoTexto;
     if (!hayMic) return "Este navegador no puede usar el micrófono. Prueba en Chrome.";
     return CONSEJOS[indiceConsejo] ?? CONSEJOS[0];
-  }, [aviso, dichoVivo, enMovil, grabando, hablando, hayMic, indiceConsejo, pensando, transcribiendo, ultimoAsistente]);
+  }, [aviso, dichoVivo, enMovil, grabando, hablando, hayMic, indiceConsejo, pensando, saludoTexto, transcribiendo, ultimoAsistente]);
 
   const terminarGrabacion = async () => {
     if (cortandoRef.current) return;
@@ -142,6 +165,17 @@ export function Dilo() {
     setAviso(null);
     setDichoVivo("");
     await desbloquearAudio();
+    if (
+      !entradaDichaRef.current &&
+      configuracion.preferenciaVoz &&
+      saludoTexto &&
+      !hayConversacion
+    ) {
+      entradaDichaRef.current = true;
+      setHablando(true);
+      await hablar(saludoTexto, configuracion.vozId);
+      setHablando(false);
+    }
     try {
       const sesion = await iniciarGrabacion(
         () => {

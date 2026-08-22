@@ -37,17 +37,31 @@ function prepararAltavoz() {
   return altavoz;
 }
 
+async function mantenerAltavozVivo() {
+  const el = prepararAltavoz();
+  if (!el || !audioDesbloqueado) return;
+  if (audioActual === el && !el.paused && el.src && !el.src.startsWith("data:")) return;
+  try {
+    el.loop = true;
+    if (el.src !== SILENCIO) el.src = SILENCIO;
+    el.muted = false;
+    el.volume = 0.01;
+    await el.play();
+  } catch {
+    /* sin gesto el navegador sigue bloqueando */
+  }
+}
+
 export async function desbloquearAudio() {
   if (typeof Audio === "undefined") return;
   const el = prepararAltavoz();
   try {
     if (el) {
+      el.loop = true;
       el.src = SILENCIO;
       el.muted = false;
-      el.volume = 0.05;
+      el.volume = 0.01;
       await el.play();
-      el.pause();
-      el.currentTime = 0;
     }
     audioDesbloqueado = true;
   } catch {
@@ -449,14 +463,10 @@ async function hablarConElevenLabs(texto: string, vozId?: string) {
     const el = prepararAltavoz() ?? new Audio();
     el.setAttribute("playsinline", "true");
     audioActual = el;
+    el.loop = false;
     el.src = url;
     el.muted = false;
     el.volume = 1;
-    try {
-      el.load();
-    } catch {
-      /* algunos móviles no necesitan load */
-    }
     if (ctxAudio?.state === "suspended") {
       try {
         await ctxAudio.resume();
@@ -471,6 +481,7 @@ async function hablarConElevenLabs(texto: string, vozId?: string) {
     });
     URL.revokeObjectURL(url);
     if (audioActual === el) audioActual = null;
+    await mantenerAltavozVivo();
     return true;
   } catch {
     return false;
@@ -506,6 +517,7 @@ export function silenciar() {
     audioActual.pause();
     audioActual = null;
   }
+  void mantenerAltavozVivo();
 }
 
 export function iaVozEtiqueta() {
