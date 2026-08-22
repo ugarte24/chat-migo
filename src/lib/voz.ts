@@ -204,7 +204,7 @@ function escucharEnVivo(): { texto: () => string; parar: () => void } {
   };
 }
 
-function iniciarSoloReconocimiento(alCortar?: () => void): GrabacionVoz {
+function iniciarSoloReconocimiento(alCortar?: () => void, onTexto?: (texto: string) => void): GrabacionVoz {
   const Ctor = ctorReconocimiento();
   if (!Ctor) {
     return {
@@ -243,9 +243,13 @@ function iniciarSoloReconocimiento(alCortar?: () => void): GrabacionVoz {
     }
     if (finales) dicho = dicho ? `${dicho} ${finales}` : finales;
     interino = provisional;
+    onTexto?.((dicho || interino).trim());
     programarCorte();
   };
-  rec.onerror = () => undefined;
+  rec.onerror = (evento) => {
+    const error = (evento as { error?: string }).error;
+    if (error === "not-allowed" || error === "service-not-allowed") alCortar?.();
+  };
   rec.onend = () => {
     if (cerrado) return;
     try {
@@ -275,10 +279,20 @@ function iniciarSoloReconocimiento(alCortar?: () => void): GrabacionVoz {
 }
 
 /** Escucha con el reconocimiento del navegador (sin Whisper). Si no hay, graba audio. */
-export async function iniciarGrabacion(alCortar?: () => void): Promise<GrabacionVoz> {
+export async function iniciarGrabacion(
+  alCortar?: () => void,
+  onTexto?: (texto: string) => void,
+): Promise<GrabacionVoz> {
+  try {
+    const permiso = await pedirMicrofono();
+    permiso.getTracks().forEach((t) => t.stop());
+    await new Promise((r) => window.setTimeout(r, 60));
+  } catch {
+    throw new Error("Sin micrófono");
+  }
   if (ctorReconocimiento()) {
     try {
-      return iniciarSoloReconocimiento(alCortar);
+      return iniciarSoloReconocimiento(alCortar, onTexto);
     } catch {
       /* algunos móviles fallan el reconocimiento; grabamos audio */
     }
@@ -419,7 +433,9 @@ export async function hablar(texto: string) {
   if (!limpio) return;
   silenciar();
   const api = await hablarConOpenAi(limpio);
-  if (!api) hablarEnNavegador(limpio);
+  if (api) return;
+  await new Promise((r) => window.setTimeout(r, 80));
+  hablarEnNavegador(limpio);
 }
 
 async function hablarConOpenAi(texto: string) {
@@ -448,6 +464,13 @@ async function hablarConOpenAi(texto: string) {
     } catch {
       /* algunos móviles no necesitan load */
     }
+    if (ctxAudio?.state === "suspended") {
+      try {
+        await ctxAudio.resume();
+      } catch {
+        /* el gesto ya pasó */
+      }
+    }
     await el.play();
     await new Promise<void>((resolve) => {
       el.onended = () => resolve();
@@ -463,13 +486,25 @@ async function hablarConOpenAi(texto: string) {
 
 function hablarEnNavegador(texto: string) {
   if (!sintesisVozDisponible()) return;
-  const utterance = new SpeechSynthesisUtterance(texto);
-  utterance.lang = "es-ES";
-  utterance.rate = 1.08;
-  utterance.pitch = 1.12;
-  const voz = window.speechSynthesis.getVoices().find((v) => v.lang.toLowerCase().startsWith("es"));
-  if (voz) utterance.voice = voz;
-  window.speechSynthesis.speak(utterance);
+  const decir = () => {
+    const utterance = new SpeechSynthesisUtterance(texto);
+    utterance.lang = "es-VE";
+    utterance.rate = 1.04;
+    utterance.pitch = 1;
+    const voces = window.speechSynthesis.getVoices();
+    const voz =
+      voces.find((v) => v.lang.toLowerCase().startsWith("es-ve")) ||
+      voces.find((v) => v.lang.toLowerCase().startsWith("es-mx")) ||
+      voces.find((v) => v.lang.toLowerCase().startsWith("es"));
+    if (voz) utterance.voice = voz;
+    window.speechSynthesis.speak(utterance);
+  };
+  if (window.speechSynthesis.getVoices().length === 0) {
+    window.speechSynthesis.addEventListener("voiceschanged", decir, { once: true });
+    window.setTimeout(decir, 250);
+    return;
+  }
+  decir();
 }
 
 export function silenciar() {

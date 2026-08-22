@@ -501,10 +501,7 @@ async function pedirGemini(modelo: string, clave: string, contents: ContenidoGem
       contents,
       tools: [{ functionDeclarations: declaracionesGemini() }],
       toolConfig: { functionCallingConfig: { mode: "AUTO" } },
-      generationConfig: {
-        temperature: 0.65,
-        thinkingConfig: { thinkingBudget: 0 },
-      },
+      generationConfig: { temperature: 0.65 },
     }),
   });
 }
@@ -538,7 +535,7 @@ async function conversarConGemini(
       if (!respuesta.ok) {
         const detalle = await respuesta.text().catch(() => "");
         console.error("gemini", modelo, respuesta.status, detalle.slice(0, 240));
-        if (respuesta.status === 429 || respuesta.status >= 500) continue;
+        if (respuesta.status === 400 || respuesta.status === 429 || respuesta.status >= 500) continue;
         return { texto: "", acciones };
       }
       const cuerpo = (await respuesta.json()) as {
