@@ -159,20 +159,20 @@ export function Dilo() {
 
   const colorEstado =
     estado === "escuchando"
-      ? "text-[#1a73e8]"
+      ? "text-[#2563eb]"
       : estado === "pensando"
-        ? "text-[#f9ab00]"
+        ? "text-[#f59e0b]"
         : estado === "hablando"
-          ? "text-[#188038]"
+          ? "text-[#0891b2]"
           : "text-[#5f6368]";
 
   return (
     <div className="font-dilo relative flex h-svh min-h-0 flex-col overflow-hidden bg-[#f8f9fa] text-[#202124]">
       <div className="pointer-events-none absolute inset-0 overflow-hidden" aria-hidden>
-        <span className="dilo-mancha-fondo absolute -left-16 top-24 size-72 rounded-full bg-[#4285f4]/15 blur-3xl" />
-        <span className="dilo-mancha-fondo absolute -right-10 top-40 size-64 rounded-full bg-[#ea4335]/12 blur-3xl [animation-delay:1.2s]" />
-        <span className="dilo-mancha-fondo absolute bottom-10 left-1/3 size-80 rounded-full bg-[#34a853]/12 blur-3xl [animation-delay:2.1s]" />
-        <span className="dilo-mancha-fondo absolute bottom-24 right-1/4 size-56 rounded-full bg-[#fbbc05]/16 blur-3xl [animation-delay:0.6s]" />
+        <span className="dilo-mancha-fondo absolute -left-16 top-24 size-72 rounded-full bg-[#00e5ff]/18 blur-3xl" />
+        <span className="dilo-mancha-fondo absolute -right-10 top-40 size-64 rounded-full bg-[#3b82f6]/16 blur-3xl [animation-delay:1.2s]" />
+        <span className="dilo-mancha-fondo absolute bottom-10 left-1/3 size-80 rounded-full bg-[#0ea5e9]/14 blur-3xl [animation-delay:2.1s]" />
+        <span className="dilo-mancha-fondo absolute bottom-24 right-1/4 size-56 rounded-full bg-[#22d3ee]/16 blur-3xl [animation-delay:0.6s]" />
       </div>
       <header className="relative z-10 flex h-16 shrink-0 items-center gap-3 px-4 sm:px-5">
         <span className="text-[17px] font-medium tracking-tight text-[#202124]">Dilo</span>
@@ -234,7 +234,7 @@ export function Dilo() {
         <p
           key={pie}
           className={`mt-2 max-w-md text-center text-[15px] leading-6 ${
-            grabando ? "text-[#1967d2]" : "text-[#5f6368]"
+            grabando ? "text-[#2563eb]" : "text-[#5f6368]"
           }`}
           style={{ animation: "dilo-texto-entra 0.4s ease-out" }}
         >
