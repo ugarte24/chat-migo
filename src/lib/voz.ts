@@ -8,6 +8,8 @@ let altavoz: HTMLAudioElement | null = null;
 let ctxAudio: AudioContext | null = null;
 let fuenteActual: AudioBufferSourceNode | null = null;
 let audioDesbloqueado = false;
+let generacionHabla = 0;
+let hablaEnCurso: Promise<void> = Promise.resolve();
 const cacheHablar = new Map<string, ArrayBuffer>();
 
 export function esIOS() {
@@ -119,8 +121,10 @@ async function reproducirBuffer(buf: ArrayBuffer) {
   try {
     await el.play();
     await new Promise<void>((resolve) => {
-      el.onended = () => resolve();
-      el.onerror = () => resolve();
+      const listo = () => resolve();
+      el.onended = listo;
+      el.onerror = listo;
+      el.addEventListener("pause", listo, { once: true });
     });
     return true;
   } catch {
@@ -305,7 +309,11 @@ function escucharEnVivo(): { texto: () => string; parar: () => void } {
   };
 }
 
-function iniciarSoloReconocimiento(alCortar?: () => void, onTexto?: (texto: string) => void): GrabacionVoz {
+function iniciarSoloReconocimiento(
+  alCortar?: () => void,
+  onTexto?: (texto: string) => void,
+  continuo = false,
+): GrabacionVoz {
   const Ctor = ctorReconocimiento();
   if (!Ctor) {
     return {
@@ -321,15 +329,17 @@ function iniciarSoloReconocimiento(alCortar?: () => void, onTexto?: (texto: stri
   let interino = "";
   let cerrado = false;
   let silencioId = 0;
-  const topeId = window.setTimeout(() => {
-    if (!cerrado) alCortar?.();
-  }, 16_000);
+  const topeId = continuo
+    ? 0
+    : window.setTimeout(() => {
+        if (!cerrado) alCortar?.();
+      }, 16_000);
 
   const programarCorte = () => {
     window.clearTimeout(silencioId);
     silencioId = window.setTimeout(() => {
       if (!cerrado && (dicho || interino)) alCortar?.();
-    }, 1600);
+    }, continuo ? 1800 : 1600);
   };
 
   rec.onresult = (evento) => {
@@ -356,7 +366,7 @@ function iniciarSoloReconocimiento(alCortar?: () => void, onTexto?: (texto: stri
     try {
       rec.start();
     } catch {
-      if (dicho || interino) alCortar?.();
+      if (dicho || interino || continuo) alCortar?.();
     }
   };
   rec.start();
@@ -383,15 +393,17 @@ function iniciarSoloReconocimiento(alCortar?: () => void, onTexto?: (texto: stri
 export async function iniciarGrabacion(
   alCortar?: () => void,
   onTexto?: (texto: string) => void,
+  opciones?: { continuo?: boolean },
 ): Promise<GrabacionVoz> {
+  const continuo = opciones?.continuo === true;
   if (ctorReconocimiento()) {
     try {
-      return iniciarSoloReconocimiento(alCortar, onTexto);
+      return iniciarSoloReconocimiento(alCortar, onTexto, continuo);
     } catch {
       /* algunos móviles fallan el reconocimiento; grabamos audio */
     }
   }
-  return iniciarGrabacionArchivo(alCortar);
+  return iniciarGrabacionArchivo(alCortar, continuo);
 }
 
 async function pedirMicrofono() {
@@ -405,7 +417,7 @@ async function pedirMicrofono() {
 }
 
 /** Graba audio para Whisper si el navegador no reconoce voz. */
-async function iniciarGrabacionArchivo(alCortar?: () => void): Promise<GrabacionVoz> {
+async function iniciarGrabacionArchivo(alCortar?: () => void, continuo = false): Promise<GrabacionVoz> {
   const stream = await pedirMicrofono();
   const mime = mimeGrabacion();
   const rec = mime ? new MediaRecorder(stream, { mimeType: mime }) : new MediaRecorder(stream);
@@ -461,7 +473,7 @@ async function iniciarGrabacionArchivo(alCortar?: () => void): Promise<Grabacion
         alCortar?.();
         return;
       }
-      if (!huboVoz && ahora - inicio > (movil ? 16000 : 12000)) {
+      if (!continuo && !huboVoz && ahora - inicio > (movil ? 16000 : 12000)) {
         cerrado = true;
         alCortar?.();
         return;
@@ -519,7 +531,21 @@ async function iniciarGrabacionArchivo(alCortar?: () => void): Promise<Grabacion
   };
 }
 
+export function esperaFinHabla() {
+  return hablaEnCurso.catch(() => undefined);
+}
+
 export async function hablar(texto: string, vozId?: string) {
+  const gen = ++generacionHabla;
+  const trabajo = emitirHabla(texto, vozId, gen);
+  hablaEnCurso = trabajo.then(
+    () => undefined,
+    () => undefined,
+  );
+  await trabajo;
+}
+
+async function emitirHabla(texto: string, vozId: string | undefined, gen: number) {
   const limpio = texto
     .replace(/[✓🔔⚙️🎤]/g, "")
     .replace(/^•\s*/gm, "")
@@ -533,6 +559,7 @@ export async function hablar(texto: string, vozId?: string) {
   }
   fuenteActual = null;
   await contextoListo();
+  if (gen !== generacionHabla) return;
 
   const clave = claveHablar(limpio, vozId);
   let buf = cacheHablar.get(clave) ?? null;
@@ -540,10 +567,12 @@ export async function hablar(texto: string, vozId?: string) {
     buf = await pedirAudioHablar(limpio, vozId);
     if (buf) cacheHablar.set(clave, buf);
   }
+  if (gen !== generacionHabla) return;
   if (buf && (await reproducirBuffer(buf))) {
     await mantenerAltavozVivo();
     return;
   }
+  if (gen !== generacionHabla) return;
   await hablarEnNavegador(limpio);
 }
 
@@ -579,6 +608,7 @@ async function hablarEnNavegador(texto: string) {
 }
 
 export function silenciar() {
+  generacionHabla += 1;
   if (sintesisVozDisponible()) window.speechSynthesis.cancel();
   try {
     fuenteActual?.stop();

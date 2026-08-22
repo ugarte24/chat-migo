@@ -11,10 +11,12 @@ export function DiloOrbe({
 }) {
   const etiqueta =
     estado === "escuchando"
-      ? "Dejar de escuchar"
+      ? "Salir de la conversación"
       : estado === "pensando"
         ? "Dilo está pensando"
-        : "Hablarle a Dilo";
+        : estado === "hablando"
+          ? "Interrumpir a Dilo"
+          : "Empezar a hablar con Dilo";
 
   return (
     <button
