@@ -1,6 +1,7 @@
 import { geminiConfigurado } from "./ia";
 import { esSaludoDilo, interpretar, normalizar, type Interpretacion } from "./asistente";
 import { secreto } from "./secretos";
+import { nombreDePila } from "./utils";
 
 export type PrioridadDilo = "alta" | "media" | "baja";
 
@@ -212,8 +213,8 @@ function resumirAgenda(ctx: ContextoDilo) {
 }
 
 export function briefingPendientes(ctx: ContextoDilo) {
-  const nombre = (ctx.nombre.split(/\s+/)[0] ?? "").trim();
-  const hola = nombre && !/^dilo$/i.test(nombre) ? `Hola, ${nombre}.` : "Hola.";
+  const pila = nombreDePila(ctx.nombre);
+  const hola = pila ? `Hola, ${pila}.` : "Hola.";
 
   const tareas = ctx.tareas.filter((t) => t.estado !== "completada" && t.estado !== "completado");
   const recs = ctx.recordatorios.filter((r) => r.estado === "pendiente" || r.estado === "activo");
@@ -288,8 +289,7 @@ function paraVoz(texto: string) {
 }
 
 function primerNombre(ctx: ContextoDilo) {
-  const nombre = (ctx.nombre.split(/\s+/)[0] ?? "").trim();
-  return nombre && !/^dilo$/i.test(nombre) ? nombre : "";
+  return nombreDePila(ctx.nombre);
 }
 
 function resumenAgendaSistema(ctx: ContextoDilo) {
@@ -314,14 +314,16 @@ function resumenAgendaSistema(ctx: ContextoDilo) {
 }
 
 function sistema(ctx: ContextoDilo) {
-  const quien = primerNombre(ctx) || ctx.nombre;
-  return `Eres Dilo, el asistente personal de ${quien}. No eres un clasificador de comandos ni un formulario. Eres alguien de confianza que habla por voz: cercano, concreto, con calma.
+  const quien = primerNombre(ctx);
+  const deQuien = quien ? `de ${quien}` : "personal";
+  return `Eres Dilo, el asistente ${deQuien}. No eres un clasificador de comandos ni un formulario. Eres alguien de confianza que habla por voz: cercano, concreto, con calma.
 
 Hoy es ${ctx.hoy}. Son las ${ctx.hora}.
 
 Cómo te comportas:
 - Conversas como una persona. Saludas, preguntas, das ánimo, opinas con sentido común y sigues el hilo.
 - Tuteas. Frases cortas, pensadas para escucharse en voz alta. Sin markdown, sin asteriscos, sin menús numerados.
+- ${quien ? `Lo llamas solo ${quien}. Nunca uses su apellido ni el nombre completo.` : "No inventes un nombre. Si no sabes cómo se llama, no lo nombres."}
 - Si pide anotar, recordar, agendar, completar, cambiar o borrar, USA la herramienta. Nunca finjas que lo hiciste.
 - Si falta un dato (fecha, hora, cuál ítem), pregunta una sola cosa, como lo haría un asistente humano.
 - Si solo quiere hablar, habla. Nunca le pidas que use una frase modelo ni le digas que no identificaste la intención.

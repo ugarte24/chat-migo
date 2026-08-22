@@ -25,7 +25,7 @@ import {
   type Tarea,
 } from "./datos";
 import { turnoLocal, type AccionDilo, type ContextoDilo, type MensajeDilo, type TurnoDilo } from "./dilo";
-import { fetchConTiempo } from "./utils";
+import { fetchConTiempo, nombreDePila } from "./utils";
 import { avisosPendientes, buscarUno } from "./motor";
 import {
   borrarAutomatizacion,
@@ -52,13 +52,18 @@ import { VOZ_DEFECTO_ID } from "./voces";
 
 export type { ConfiguracionUsuario, MensajeChat };
 
-const MENSAJE_BIENVENIDA = (nombre: string): MensajeChat => ({
-  id: "msg-welcome",
-  autor: "asistente",
-  texto: `Hola, ${nombre}. Estoy aquí. Cuéntame qué tienes entre manos.`,
-  tipo: "texto",
-  hora: "08:00",
-});
+const MENSAJE_BIENVENIDA = (nombre: string): MensajeChat => {
+  const pila = nombreDePila(nombre);
+  return {
+    id: "msg-welcome",
+    autor: "asistente",
+    texto: pila
+      ? `Hola, ${pila}. Estoy aquí. Cuéntame qué tienes entre manos.`
+      : "Hola. Estoy aquí. Cuéntame qué tienes entre manos.",
+    tipo: "texto",
+    hora: "08:00",
+  };
+};
 
 interface Ctx {
   usuario: string;
@@ -130,7 +135,7 @@ async function pedirTurnoDilo(
 export function AsistenteProvider({ children }: { children: ReactNode }) {
   const { perfil, cargando: authCargando } = useAuth();
   const usuarioId = perfil?.id ?? "";
-  const usuario = perfil?.nombre ?? "Usuario";
+  const usuario = nombreDePila(perfil?.nombre) || perfil?.nombre || "Usuario";
 
   const [mensajes, setMensajes] = useState<MensajeChat[]>([MENSAJE_BIENVENIDA(usuario)]);
   const [tareas, setTareas] = useState<Tarea[]>([]);
@@ -175,8 +180,11 @@ export function AsistenteProvider({ children }: { children: ReactNode }) {
         setPersistencia("error");
         return;
       }
+      const bienvenida = MENSAJE_BIENVENIDA(remoto.nombre);
       setMensajes(
-        remoto.mensajes.length > 0 ? remoto.mensajes : [MENSAJE_BIENVENIDA(remoto.nombre)],
+        remoto.mensajes.length > 0
+          ? remoto.mensajes.map((m) => (m.id === "msg-welcome" ? { ...m, texto: bienvenida.texto } : m))
+          : [bienvenida],
       );
       setTareas(remoto.tareas);
       setRecordatorios(remoto.recordatorios);

@@ -5,6 +5,7 @@ import { DiloOrbe, type EstadoOrbe } from "@/components/DiloOrbe";
 import { SelectorVozBarra } from "@/components/SelectorVoz";
 import { useAuth } from "@/lib/auth";
 import { useAsistente } from "@/lib/store";
+import { nombreDePila } from "@/lib/utils";
 import {
   iniciarGrabacion,
   microfonoDisponible,
@@ -62,11 +63,11 @@ export function Dilo() {
   const visibles = mensajes.filter((m) => m.tipo !== "proceso" && m.tipo !== "analisis");
   const ultimoAsistente = [...visibles].reverse().find((m) => m.autor === "asistente");
   const hayConversacion = visibles.some((m) => m.autor === "usuario");
-  const textoSaludo =
-    visibles.find((m) => m.id === "msg-welcome")?.texto ??
-    (perfil?.nombre
-      ? `Hola, ${perfil.nombre}. Estoy aquí. Cuéntame qué tienes entre manos.`
-      : "Hola. Estoy aquí. Cuéntame qué tienes entre manos.");
+  const pila = nombreDePila(perfil?.nombre);
+  const textoSaludo = pila
+    ? `Hola, ${pila}. Estoy aquí. Cuéntame qué tienes entre manos.`
+    : (visibles.find((m) => m.id === "msg-welcome")?.texto ??
+      "Hola. Estoy aquí. Cuéntame qué tienes entre manos.");
   const entradaDichaRef = useRef(false);
 
   useEffect(() => {
@@ -340,14 +341,14 @@ export function Dilo() {
       <div className="relative z-10 flex min-h-0 flex-1 flex-col items-center justify-center px-6 pb-[max(1.5rem,env(safe-area-inset-bottom))]">
         <DiloOrbe estado={estado} onActivar={() => void pulsarOrbe()} />
         <p
-          key={estado}
+          key={`estado-${estado}`}
           className={`mt-7 text-[15px] font-medium ${colorEstado}`}
           style={{ animation: "dilo-texto-entra 0.35s ease-out" }}
         >
           {ESTADO_TEXTO[estado]}
         </p>
         <p
-          key={grabando || transcribiendo || pensando || hablando ? estado : pie}
+          key={grabando || transcribiendo || pensando || hablando ? "dilo-pie" : pie}
           className={`mt-2 max-w-md text-center text-[15px] leading-6 ${
             grabando ? "text-[#2563eb]" : "text-[#5f6368]"
           }`}
