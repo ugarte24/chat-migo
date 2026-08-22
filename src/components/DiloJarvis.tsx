@@ -70,8 +70,8 @@ export function Dilo() {
     if (hablando && ultimoAsistente && ultimoAsistente.id !== "msg-welcome") return ultimoAsistente.texto;
     if (ultimoAsistente && ultimoAsistente.id !== "msg-welcome") return ultimoAsistente.texto;
     return enMovil
-      ? "Pulsa el orbe, habla y pulsa otra vez para enviar. También puedes escribir y tocar enviar."
-      : "Pulsa el orbe o el micrófono y habla. Dilo te responde al callarte.";
+      ? "Pulsa el orbe, habla y pulsa otra vez. También puedes escribirme abajo."
+      : "Pulsa el orbe o el micrófono y habla. Estoy para ayudarte.";
   }, [aviso, enMovil, grabando, hablando, pensando, transcribiendo, ultimoAsistente]);
 
   const enviar = (valor: string, tipo: "texto" | "voz" = "texto") => {
@@ -238,7 +238,7 @@ export function Dilo() {
           <input
             value={texto}
             onChange={(e) => setTexto(e.target.value)}
-            placeholder="Pregúntale a Dilo"
+            placeholder="Habla con Dilo"
             aria-label="Escribirle a Dilo"
             enterKeyHint="send"
             disabled={pensando || grabando || transcribiendo}

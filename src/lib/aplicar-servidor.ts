@@ -116,8 +116,8 @@ export async function persistirInterpretacion(
       return responder("Consulta recibida. Revisa tu panel para ver tareas, recordatorios y eventos.");
     }
     case "desconocida": {
-      await registrar("Mensaje no interpretado", "error");
-      return responder("No pude identificar qué necesitas. Prueba con “Recuérdame mañana a las 8 enviar el informe”.");
+      await registrar("Conversación");
+      return responder("Te escucho. Puedo anotarte algo, recordártelo o seguir la conversación. ¿Qué tienes entre manos?");
     }
     default: {
       await db.from("tareas").insert({

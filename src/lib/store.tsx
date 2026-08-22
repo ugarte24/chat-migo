@@ -10,7 +10,7 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import { fechaLegible, horaAhora, interpretar, esSaludoDilo, type Interpretacion } from "./asistente";
+import { fechaLegible, horaAhora, type Interpretacion } from "./asistente";
 import { useAuth } from "./auth";
 import {
   hoyISO,
@@ -24,7 +24,7 @@ import {
   type Recordatorio,
   type Tarea,
 } from "./datos";
-import { briefingPendientes, type AccionDilo, type ContextoDilo, type MensajeDilo, type TurnoDilo } from "./dilo";
+import { turnoLocal, type AccionDilo, type ContextoDilo, type MensajeDilo, type TurnoDilo } from "./dilo";
 import { fetchConTiempo } from "./utils";
 import { avisosPendientes, buscarUno } from "./motor";
 import {
@@ -54,7 +54,7 @@ export type { ConfiguracionUsuario, MensajeChat };
 const MENSAJE_BIENVENIDA = (nombre: string): MensajeChat => ({
   id: "msg-welcome",
   autor: "asistente",
-  texto: `Hola, ${nombre}. Soy Dilo. Dime qué hacer.`,
+  texto: `Hola, ${nombre}. Estoy aquí. Cuéntame qué tienes entre manos.`,
   tipo: "texto",
   hora: "08:00",
 });
@@ -116,7 +116,7 @@ async function pedirTurnoDilo(
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ mensaje, historial, contexto }),
       },
-      12_000,
+      22_000,
     );
     if (!res.ok) return null;
     return (await res.json()) as TurnoDilo;
@@ -796,14 +796,13 @@ export function AsistenteProvider({ children }: { children: ReactNode }) {
           registrar(texto, "Consulta respondida");
           break;
         }
-        case "desconocida": {
+    case "desconocida": {
           push({
             autor: "asistente",
-            texto:
-              "No pude identificar qué necesitas. Intenta con “Recuérdame mañana a las 8 enviar el informe” o “completa comprar materiales”.",
-            tipo: "error",
+            texto: "Te escucho. Puedo anotarte algo, recordártelo o seguir la conversación. ¿Qué tienes entre manos?",
+            tipo: "texto",
           });
-          registrar(texto, "Mensaje no interpretado", "error");
+          registrar(texto, "Conversación");
           break;
         }
         default: {
@@ -891,25 +890,13 @@ export function AsistenteProvider({ children }: { children: ReactNode }) {
           }));
 
         try {
-          if (esSaludoDilo(texto)) {
-            push({
-              autor: "asistente",
-              texto: briefingPendientes(contexto),
-              tipo: "texto",
-            });
-            return;
-          }
-          const turno = await pedirTurnoDilo(texto, historial, contexto);
-          if (turno?.texto || (turno && turno.acciones.length > 0)) {
-            aplicarAcciones(turno.acciones, texto);
-            push({
-              autor: "asistente",
-              texto: turno.texto || "Listo.",
-              tipo: turno.acciones.length > 0 ? "confirmacion" : "texto",
-            });
-          } else {
-            aplicarInterpretacion(texto, interpretar(texto));
-          }
+          const turno = (await pedirTurnoDilo(texto, historial, contexto)) ?? turnoLocal(texto, contexto);
+          if (turno.acciones.length > 0) aplicarAcciones(turno.acciones, texto);
+          push({
+            autor: "asistente",
+            texto: turno.texto || "Te escucho. Dime cómo sigo.",
+            tipo: turno.acciones.length > 0 ? "confirmacion" : "texto",
+          });
         } catch {
           push({
             autor: "asistente",
@@ -921,7 +908,7 @@ export function AsistenteProvider({ children }: { children: ReactNode }) {
         }
       })();
     },
-    [aplicarAcciones, aplicarInterpretacion, push, usuario],
+    [aplicarAcciones, push, usuario],
   );
 
   const valor = useMemo<Ctx>(

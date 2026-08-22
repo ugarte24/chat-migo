@@ -1,12 +1,20 @@
 import { interpretar, type Interpretacion } from "./asistente";
+import { secreto } from "./secretos";
 
 function claveOpenAi() {
-  if (typeof process === "undefined" || process.env == null) return "";
-  return process.env["OPENAI_API_KEY"]?.trim() ?? "";
+  return secreto("OPENAI_API_KEY");
+}
+
+function claveGemini() {
+  return secreto("GEMINI_API_KEY");
+}
+
+export function geminiConfigurado() {
+  return claveGemini().length > 10;
 }
 
 export function iaConfigurada() {
-  return claveOpenAi().length > 10;
+  return claveOpenAi().length > 10 || geminiConfigurado();
 }
 
 const SISTEMA = `Eres Dilo, un asistente que convierte instrucciones en español en una acción.
@@ -118,13 +126,12 @@ export async function sintetizarVoz(texto: string): Promise<ArrayBuffer | null> 
   return sintetizarElevenLabs(limpio);
 }
 
-function envServidor(clave: string) {
-  if (typeof process === "undefined" || process.env == null) return "";
-  return process.env[clave]?.trim() ?? "";
+function envServidor(clave: "ELEVENLABS_API_KEY" | "ELEVENLABS_VOICE_ID") {
+  return secreto(clave);
 }
 
-/** Laura: joven, entusiasta y clara en español. Cámbiala en ELEVENLABS_VOICE_ID. */
-export const VOZ_ELEVENLABS_ID = "FGY2WhTYpPnrIDTdsKH5";
+/** Santiago: joven, claro y cálido en español. Cámbiala en ELEVENLABS_VOICE_ID. */
+export const VOZ_ELEVENLABS_ID = "15bJsujCI3tcDWeoZsQP";
 
 export function vozElevenLabsId() {
   const env = envServidor("ELEVENLABS_VOICE_ID");

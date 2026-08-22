@@ -1,5 +1,6 @@
-import { iaConfigurada } from "./ia";
-import { esSaludoDilo } from "./asistente";
+import { geminiConfigurado } from "./ia";
+import { esSaludoDilo, interpretar, normalizar, type Interpretacion } from "./asistente";
+import { secreto } from "./secretos";
 
 export type PrioridadDilo = "alta" | "media" | "baja";
 
@@ -49,9 +50,12 @@ export interface TurnoDilo {
   acciones: AccionDilo[];
 }
 
+function claveGemini() {
+  return secreto("GEMINI_API_KEY");
+}
+
 function claveOpenAi() {
-  if (typeof process === "undefined" || process.env == null) return "";
-  return process.env["OPENAI_API_KEY"]?.trim() ?? "";
+  return secreto("OPENAI_API_KEY");
 }
 
 const HERRAMIENTAS = [
@@ -59,7 +63,7 @@ const HERRAMIENTAS = [
     type: "function",
     function: {
       name: "consultar_agenda",
-      description: "Consulta tareas, recordatorios, eventos, memoria y automatizaciones del usuario.",
+      description: "Consulta el detalle de la agenda. Úsala si pregunta qué tiene pendiente, hoy o más adelante. No la uses solo para charlar.",
       parameters: {
         type: "object",
         properties: {
@@ -279,13 +283,53 @@ function confirmarAcciones(acciones: AccionDilo[], ctx: ContextoDilo, consultoAg
   return frases.join(" ") || (consultoAgenda ? resumirAgenda(ctx) : "Listo.");
 }
 
+function paraVoz(texto: string) {
+  return texto.replace(/\s+/g, " ").trim();
+}
+
+function primerNombre(ctx: ContextoDilo) {
+  const nombre = (ctx.nombre.split(/\s+/)[0] ?? "").trim();
+  return nombre && !/^dilo$/i.test(nombre) ? nombre : "";
+}
+
+function resumenAgendaSistema(ctx: ContextoDilo) {
+  const tareas = ctx.tareas.filter((t) => t.estado !== "completada" && t.estado !== "completado");
+  const recs = ctx.recordatorios.filter((r) => r.estado === "pendiente" || r.estado === "activo");
+  const eventos = ctx.eventos.filter(
+    (e) => e.fecha >= ctx.hoy && e.estado !== "completado" && e.estado !== "completada" && e.estado !== "cancelada",
+  );
+  const lineas = [
+    tareas.length ? `Tareas: ${tareas.slice(0, 8).map((t) => t.titulo).join("; ")}` : "Sin tareas pendientes.",
+    recs.length
+      ? `Recordatorios: ${recs.slice(0, 6).map((r) => `${r.actividad} (${r.fecha} ${r.hora})`).join("; ")}`
+      : "Sin recordatorios.",
+    eventos.length
+      ? `Eventos: ${eventos.slice(0, 6).map((e) => `${e.titulo} (${e.fecha} ${e.hora})`).join("; ")}`
+      : "Sin eventos próximos.",
+  ];
+  if (ctx.memoriaActiva && ctx.memoria.length > 0) {
+    lineas.push(`Recuerdos: ${ctx.memoria.slice(0, 8).map((m) => m.informacion).join("; ")}.`);
+  }
+  return lineas.join(" ");
+}
+
 function sistema(ctx: ContextoDilo) {
-  return `Eres Dilo, el asistente personal de ${ctx.nombre}. Hablas español, breve y natural, como un ayudante de voz: directo, calmado, útil.
+  const quien = primerNombre(ctx) || ctx.nombre;
+  return `Eres Dilo, el asistente personal de ${quien}. No eres un clasificador de comandos ni un formulario. Eres alguien de confianza que habla por voz: cercano, concreto, con calma.
+
 Hoy es ${ctx.hoy}. Son las ${ctx.hora}.
-Usas herramientas para guardar, consultar, completar, cambiar o borrar actividades. No digas que lo hiciste si no llamaste a la herramienta.
-Si el usuario te saluda (hola, dilo, hey, buenas, cómo estás) o solo dice tu nombre, llama consultar_agenda y responde con un saludo corto más los pendientes de hoy. Si no hay, dilo claro.
-${ctx.memoriaActiva ? "Puedes guardar recuerdos si el usuario te lo pide." : "La memoria está desactivada: no guardes recuerdos."}
-Responde para ser escuchado en voz alta: frases cortas, sin markdown, sin listas con asteriscos.`;
+
+Cómo te comportas:
+- Conversas como una persona. Saludas, preguntas, das ánimo, opinas con sentido común y sigues el hilo.
+- Tuteas. Frases cortas, pensadas para escucharse en voz alta. Sin markdown, sin asteriscos, sin menús numerados.
+- Si pide anotar, recordar, agendar, completar, cambiar o borrar, USA la herramienta. Nunca finjas que lo hiciste.
+- Si falta un dato (fecha, hora, cuál ítem), pregunta una sola cosa, como lo haría un asistente humano.
+- Si solo quiere hablar, habla. Nunca le pidas que use una frase modelo ni le digas que no identificaste la intención.
+- Si pregunta quién eres o qué puedes hacer, explícalo en una o dos frases naturales.
+
+Contexto de su día:
+${resumenAgendaSistema(ctx)}
+${ctx.memoriaActiva ? "Puedes guardar recuerdos si te lo pide." : "La memoria está desactivada: no guardes recuerdos."}`;
 }
 
 function prioridad(valor: unknown): PrioridadDilo {
@@ -421,76 +465,349 @@ interface MensajeApi {
   }[];
 }
 
+function declaracionesGemini() {
+  return HERRAMIENTAS.map((h) => ({
+    name: h.function.name,
+    description: h.function.description,
+    parameters: h.function.parameters,
+  }));
+}
+
+interface ParteGemini {
+  text?: string;
+  functionCall?: { name?: string; args?: Record<string, unknown> };
+  functionResponse?: { name: string; response: Record<string, unknown> };
+}
+
+const MODELOS_GEMINI = [
+  "gemini-3.6-flash",
+  "gemini-3.5-flash",
+  "gemini-flash-latest",
+  "gemini-2.5-flash",
+];
+
+type ContenidoGemini = { role: string; parts: ParteGemini[] };
+
+async function pedirGemini(modelo: string, clave: string, contents: ContenidoGemini[], contexto: ContextoDilo) {
+  return fetch(`https://generativelanguage.googleapis.com/v1beta/models/${modelo}:generateContent`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "x-goog-api-key": clave,
+    },
+    signal: AbortSignal.timeout(18_000),
+    body: JSON.stringify({
+      systemInstruction: { parts: [{ text: sistema(contexto) }] },
+      contents,
+      tools: [{ functionDeclarations: declaracionesGemini() }],
+      toolConfig: { functionCallingConfig: { mode: "AUTO" } },
+      generationConfig: {
+        temperature: 0.65,
+        thinkingConfig: { thinkingBudget: 0 },
+      },
+    }),
+  });
+}
+
+function partesGemini(cuerpo: { candidates?: { content?: { parts?: ParteGemini[] } }[] }) {
+  return cuerpo.candidates?.[0]?.content?.parts ?? [];
+}
+
+async function conversarConGemini(
+  mensaje: string,
+  historial: MensajeDilo[],
+  contexto: ContextoDilo,
+): Promise<TurnoDilo> {
+  const clave = claveGemini();
+  if (!clave) return { texto: "", acciones: [] };
+
+  const contents: ContenidoGemini[] = [
+    ...historial.slice(-12).map((m) => ({
+      role: m.role === "assistant" ? "model" : "user",
+      parts: [{ text: m.content }] as ParteGemini[],
+    })),
+    { role: "user", parts: [{ text: mensaje }] },
+  ];
+
+  const acciones: AccionDilo[] = [];
+
+  for (const modelo of MODELOS_GEMINI) {
+    try {
+      const respuesta = await pedirGemini(modelo, clave, contents, contexto);
+      if (respuesta.status === 404) continue;
+      if (!respuesta.ok) {
+        const detalle = await respuesta.text().catch(() => "");
+        console.error("gemini", modelo, respuesta.status, detalle.slice(0, 240));
+        if (respuesta.status === 429 || respuesta.status >= 500) continue;
+        return { texto: "", acciones };
+      }
+      const cuerpo = (await respuesta.json()) as {
+        candidates?: { content?: { parts?: ParteGemini[] } }[];
+      };
+      const partes = partesGemini(cuerpo);
+      let hablado = "";
+      let consultoAgenda = false;
+      const llamadas: { name: string; args: Record<string, unknown>; resultado: string }[] = [];
+
+      for (const parte of partes) {
+        if (parte.text?.trim()) hablado = `${hablado} ${parte.text.trim()}`.trim();
+        const llamada = parte.functionCall;
+        if (!llamada?.name) continue;
+        if (llamada.name === "consultar_agenda") consultoAgenda = true;
+        const resultado = ejecutarHerramienta(llamada.name, llamada.args ?? {}, contexto, acciones);
+        llamadas.push({ name: llamada.name, args: llamada.args ?? {}, resultado });
+      }
+
+      if (llamadas.length > 0) {
+        const segunda = await pedirGemini(
+          modelo,
+          clave,
+          [
+            ...contents,
+            { role: "model", parts },
+            {
+              role: "user",
+              parts: llamadas.map((l) => ({
+                functionResponse: {
+                  name: l.name,
+                  response: { resultado: l.resultado },
+                },
+              })),
+            },
+          ],
+          contexto,
+        );
+        if (segunda.ok) {
+          const seguimiento = (await segunda.json()) as {
+            candidates?: { content?: { parts?: ParteGemini[] } }[];
+          };
+          const textos = partesGemini(seguimiento)
+            .map((p) => p.text?.trim() ?? "")
+            .filter(Boolean);
+          if (textos.length) hablado = textos.join(" ");
+        }
+      }
+
+      return {
+        texto: paraVoz(hablado || confirmarAcciones(acciones, contexto, consultoAgenda)),
+        acciones,
+      };
+    } catch (error) {
+      console.error("gemini", modelo, error);
+      continue;
+    }
+  }
+  return { texto: "", acciones };
+}
+
+export function turnoLocal(mensaje: string, contexto: ContextoDilo): TurnoDilo {
+  if (esSaludoDilo(mensaje)) {
+    return { texto: briefingPendientes(contexto), acciones: [] };
+  }
+
+  const r = interpretar(mensaje);
+  if (r.intencion === "consulta") {
+    return { texto: briefingPendientes(contexto), acciones: [] };
+  }
+
+  const acciones = accionesDesdeInterpretacion(r);
+  if (acciones.length > 0) {
+    return { texto: confirmarAcciones(acciones, contexto, false), acciones };
+  }
+  if (r.intencion !== "desconocida") {
+    return { texto: aclaracionNatural(r), acciones: [] };
+  }
+  return { texto: charlaLocal(mensaje, contexto), acciones: [] };
+}
+
+function accionesDesdeInterpretacion(r: Interpretacion): AccionDilo[] {
+  switch (r.intencion) {
+    case "tarea":
+      return r.actividad
+        ? [{ tipo: "crear_tarea", titulo: r.actividad, fecha: r.fecha, prioridad: r.prioridad }]
+        : [];
+    case "recordatorio":
+      return r.actividad && r.fecha && r.hora
+        ? [{ tipo: "crear_recordatorio", actividad: r.actividad, fecha: r.fecha, hora: r.hora }]
+        : [];
+    case "evento":
+      return r.actividad && r.fecha && r.hora
+        ? [{ tipo: "crear_evento", titulo: r.actividad, fecha: r.fecha, hora: r.hora, persona: r.persona }]
+        : [];
+    case "memoria":
+      return r.actividad
+        ? [{ tipo: "guardar_memoria", informacion: r.actividad, categoria: r.persona ? "Personas" : "Preferencias" }]
+        : [];
+    case "automatizacion":
+      return r.actividad
+        ? [
+            {
+              tipo: "crear_automatizacion",
+              accion: r.actividad,
+              frecuencia: r.frecuencia ?? "Todos los días",
+              hora: r.hora ?? "08:00",
+            },
+          ]
+        : [];
+    case "completar":
+      return r.actividad
+        ? [
+            {
+              tipo: "completar",
+              entidad: r.entidad === "recordatorio" || r.entidad === "evento" ? r.entidad : "tarea",
+              consulta: r.actividad,
+            },
+          ]
+        : [];
+    case "eliminar":
+      return r.actividad
+        ? [
+            {
+              tipo: "eliminar",
+              entidad:
+                r.entidad === "recordatorio" ||
+                r.entidad === "evento" ||
+                r.entidad === "memoria" ||
+                r.entidad === "automatizacion"
+                  ? r.entidad
+                  : "tarea",
+              consulta: r.actividad,
+            },
+          ]
+        : [];
+    case "modificar":
+      return r.actividad
+        ? [
+            {
+              tipo: "modificar",
+              entidad: r.entidad === "recordatorio" || r.entidad === "evento" ? r.entidad : "tarea",
+              consulta: r.actividad,
+              fecha: r.fecha,
+              hora: r.hora,
+            },
+          ]
+        : [];
+    default:
+      return [];
+  }
+}
+
+function aclaracionNatural(r: Interpretacion): string {
+  if (r.intencion === "recordatorio" || r.intencion === "evento") {
+    const que = r.actividad || "eso";
+    if (!r.fecha && !r.hora) return `De acuerdo, ${que}. ¿Para qué día y a qué hora?`;
+    if (!r.fecha) return `Va, ${que}. ¿Qué día te lo dejo?`;
+    return `Va, ${que}. ¿A qué hora?`;
+  }
+  if (r.intencion === "completar" || r.intencion === "eliminar" || r.intencion === "modificar") {
+    return "Dime cuál, y lo dejo hecho.";
+  }
+  return "Cuéntame un poco más y lo resolvemos.";
+}
+
+function charlaLocal(mensaje: string, ctx: ContextoDilo): string {
+  const n = normalizar(mensaje);
+  const nombre = primerNombre(ctx);
+  const hola = nombre ? `${nombre}, ` : "";
+
+  if (/\b(como estas|que tal|todo bien|como va|que onda)\b/.test(n)) {
+    return `Aquí ando, ${hola || ""}listo para lo que necesites. ${cierreAgenda(ctx)}`;
+  }
+  if (/\b(quien eres|que eres|que puedes|que haces|para que sirves|ayudame|ayuda)\b/.test(n)) {
+    return "Soy Dilo, tu asistente. Te ayudo a organizar el día, recordarte cosas, anotar pendientes y conversar con calma. Dime qué tienes entre manos.";
+  }
+  if (/\bgracias\b/.test(n)) {
+    return "Cuando quieras. Aquí sigo.";
+  }
+  if (/\b(cansad|estresad|agotad|mal dia|buen dia)\b/.test(n)) {
+    return "Te escucho. Si quieres lo descargamos, o vemos qué tienes pendiente y lo hacemos más liviano. ¿Qué te encaja ahora?";
+  }
+  if (/\?$/.test(mensaje.trim()) || /^(que|cual|como|cuando|donde|por que|puedes|me puedes|y si)\b/.test(n)) {
+    return `Te sigo. ${cierreAgenda(ctx)} Si quieres, lo anotamos o lo vemos juntos.`;
+  }
+  return `Te escucho. ${cierreAgenda(ctx)} Dime cómo sigo.`;
+}
+
+function cierreAgenda(ctx: ContextoDilo) {
+  const tareas = ctx.tareas.filter((t) => t.estado !== "completada" && t.estado !== "completado").length;
+  const recs = ctx.recordatorios.filter((r) => (r.estado === "pendiente" || r.estado === "activo") && r.fecha === ctx.hoy)
+    .length;
+  if (tareas === 0 && recs === 0) return "Hoy no tienes nada marcado.";
+  if (recs > 0 && tareas > 0) return `Hoy tienes ${tareas} ${tareas === 1 ? "tarea" : "tareas"} y ${recs} ${recs === 1 ? "recordatorio" : "recordatorios"}.`;
+  if (recs > 0) return `Hoy tienes ${recs} ${recs === 1 ? "recordatorio" : "recordatorios"}.`;
+  return `Tienes ${tareas} ${tareas === 1 ? "tarea pendiente" : "tareas pendientes"}.`;
+}
+
 export async function conversarConDilo(
   mensaje: string,
   historial: MensajeDilo[],
   contexto: ContextoDilo,
 ): Promise<TurnoDilo> {
-  if (esSaludoDilo(mensaje)) {
-    return { texto: briefingPendientes(contexto), acciones: [] };
+  if (geminiConfigurado()) {
+    const turno = await conversarConGemini(mensaje, historial, contexto);
+    if (turno.texto || turno.acciones.length > 0) return turno;
   }
 
   const clave = claveOpenAi();
-  if (!clave || !iaConfigurada()) {
-    return { texto: "", acciones: [] };
-  }
+  if (clave.length >= 10) {
+    const mensajes: MensajeApi[] = [
+      { role: "system", content: sistema(contexto) },
+      ...historial.slice(-12).map((m) => ({ role: m.role, content: m.content })),
+      { role: "user", content: mensaje },
+    ];
 
-  const mensajes: MensajeApi[] = [
-    { role: "system", content: sistema(contexto) },
-    ...historial.slice(-12).map((m) => ({ role: m.role, content: m.content })),
-    { role: "user", content: mensaje },
-  ];
+    const acciones: AccionDilo[] = [];
 
-  const acciones: AccionDilo[] = [];
-
-  try {
-    const respuesta = await fetch("https://api.openai.com/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${clave}`,
-        "Content-Type": "application/json",
-      },
-      signal: AbortSignal.timeout(8_000),
-      body: JSON.stringify({
-        model: "gpt-4o-mini",
-        temperature: 0.4,
-        tools: HERRAMIENTAS,
-        tool_choice: "auto",
-        messages: mensajes,
-      }),
-    });
-    if (!respuesta.ok) {
-      return { texto: "", acciones };
-    }
-    const cuerpo = (await respuesta.json()) as {
-      choices?: { message?: MensajeApi }[];
-    };
-    const msg = cuerpo.choices?.[0]?.message;
-    if (!msg) return { texto: "", acciones };
-
-    const llamadas = msg.tool_calls ?? [];
-    if (llamadas.length === 0) {
-      return { texto: (msg.content ?? "").trim(), acciones };
-    }
-
-    let consultoAgenda = false;
-    for (const llamada of llamadas) {
-      let args: Record<string, unknown> = {};
-      try {
-        args = JSON.parse(llamada.function.arguments || "{}") as Record<string, unknown>;
-      } catch {
-        args = {};
+    try {
+      const respuesta = await fetch("https://api.openai.com/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${clave}`,
+          "Content-Type": "application/json",
+        },
+        signal: AbortSignal.timeout(12_000),
+        body: JSON.stringify({
+          model: "gpt-4o-mini",
+          temperature: 0.65,
+          tools: HERRAMIENTAS,
+          tool_choice: "auto",
+          messages: mensajes,
+        }),
+      });
+      if (respuesta.ok) {
+        const cuerpo = (await respuesta.json()) as {
+          choices?: { message?: MensajeApi }[];
+        };
+        const msg = cuerpo.choices?.[0]?.message;
+        if (msg) {
+          const llamadas = msg.tool_calls ?? [];
+          if (llamadas.length === 0) {
+            const hablado = (msg.content ?? "").trim();
+            if (hablado) return { texto: hablado, acciones };
+          } else {
+            let consultoAgenda = false;
+            for (const llamada of llamadas) {
+              let args: Record<string, unknown> = {};
+              try {
+                args = JSON.parse(llamada.function.arguments || "{}") as Record<string, unknown>;
+              } catch {
+                args = {};
+              }
+              if (llamada.function.name === "consultar_agenda") consultoAgenda = true;
+              ejecutarHerramienta(llamada.function.name, args, contexto, acciones);
+            }
+            const hablado = (msg.content ?? "").trim();
+            return {
+              texto: hablado || confirmarAcciones(acciones, contexto, consultoAgenda),
+              acciones,
+            };
+          }
+        }
       }
-      if (llamada.function.name === "consultar_agenda") consultoAgenda = true;
-      ejecutarHerramienta(llamada.function.name, args, contexto, acciones);
+    } catch {
+      /* cae al turno local */
     }
-
-    const hablado = (msg.content ?? "").trim();
-    return {
-      texto: hablado || confirmarAcciones(acciones, contexto, consultoAgenda),
-      acciones,
-    };
-  } catch {
-    return { texto: "", acciones };
   }
+
+  return turnoLocal(mensaje, contexto);
 }
