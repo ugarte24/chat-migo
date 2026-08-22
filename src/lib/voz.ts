@@ -283,13 +283,6 @@ export async function iniciarGrabacion(
   alCortar?: () => void,
   onTexto?: (texto: string) => void,
 ): Promise<GrabacionVoz> {
-  try {
-    const permiso = await pedirMicrofono();
-    permiso.getTracks().forEach((t) => t.stop());
-    await new Promise((r) => window.setTimeout(r, 60));
-  } catch {
-    throw new Error("Sin micrófono");
-  }
   if (ctorReconocimiento()) {
     try {
       return iniciarSoloReconocimiento(alCortar, onTexto);
@@ -425,27 +418,27 @@ async function iniciarGrabacionArchivo(alCortar?: () => void): Promise<Grabacion
   };
 }
 
-export async function hablar(texto: string) {
+export async function hablar(texto: string, vozId?: string) {
   const limpio = texto
     .replace(/[✓🔔⚙️🎤]/g, "")
     .replace(/^•\s*/gm, "")
     .trim();
   if (!limpio) return;
   silenciar();
-  const api = await hablarConOpenAi(limpio);
+  const api = await hablarConElevenLabs(limpio, vozId);
   if (api) return;
   await new Promise((r) => window.setTimeout(r, 80));
   hablarEnNavegador(limpio);
 }
 
-async function hablarConOpenAi(texto: string) {
+async function hablarConElevenLabs(texto: string, vozId?: string) {
   try {
     const res = await fetchConTiempo(
       "/api/hablar",
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ texto }),
+        body: JSON.stringify({ texto, vozId }),
       },
       14_000,
     );

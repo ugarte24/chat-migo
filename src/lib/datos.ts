@@ -100,6 +100,7 @@ export interface ConfiguracionUsuario {
   avisosAutomatizaciones: boolean;
   memoriaActiva: boolean;
   preferenciaVoz: boolean;
+  vozId: string;
 }
 
 export const fechaCorta = (iso: string) =>

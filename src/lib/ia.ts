@@ -1,5 +1,6 @@
 import { interpretar, type Interpretacion } from "./asistente";
 import { secreto } from "./secretos";
+import { esVozGratis, VOZ_DEFECTO_ID, vozResuelta } from "./voces";
 
 function claveOpenAi() {
   return secreto("OPENAI_API_KEY");
@@ -119,57 +120,66 @@ export async function transcribirWhisper(
   }
 }
 
-/** Voz de Dilo: ElevenLabs (ID de voz copiado). Si falta la clave, no habla por API. */
-export async function sintetizarVoz(texto: string): Promise<ArrayBuffer | null> {
+/** Voz de Dilo: ElevenLabs. Si falta la clave, no habla por API. */
+export async function sintetizarVoz(texto: string, vozId?: string): Promise<ArrayBuffer | null> {
   const limpio = texto.replace(/[#*_`]/g, "").trim();
   if (!limpio) return null;
-  return sintetizarElevenLabs(limpio);
+  return sintetizarElevenLabs(limpio, vozId);
 }
 
 function envServidor(clave: "ELEVENLABS_API_KEY" | "ELEVENLABS_VOICE_ID") {
   return secreto(clave);
 }
 
-/** Santiago: joven, claro y cálido en español. Cámbiala en ELEVENLABS_VOICE_ID. */
-export const VOZ_ELEVENLABS_ID = "15bJsujCI3tcDWeoZsQP";
+export const VOZ_ELEVENLABS_ID = VOZ_DEFECTO_ID;
 
-export function vozElevenLabsId() {
+export function vozElevenLabsId(pedida?: string) {
+  if (esVozGratis(pedida)) return pedida!;
   const env = envServidor("ELEVENLABS_VOICE_ID");
-  if (!env || env === "XB0fDUnXU5powFXDhCwa") return VOZ_ELEVENLABS_ID;
-  return env;
+  return vozResuelta(env);
 }
 
 export function elevenLabsConfigurado() {
   return envServidor("ELEVENLABS_API_KEY").length > 10;
 }
 
-async function sintetizarElevenLabs(texto: string): Promise<ArrayBuffer | null> {
+async function pedirAudioElevenLabs(clave: string, voz: string, texto: string) {
+  return fetch(`https://api.elevenlabs.io/v1/text-to-speech/${voz}`, {
+    method: "POST",
+    headers: {
+      "xi-api-key": clave,
+      Accept: "audio/mpeg",
+      "Content-Type": "application/json",
+    },
+    signal: AbortSignal.timeout(12_000),
+    body: JSON.stringify({
+      text: texto.slice(0, 4000),
+      model_id: "eleven_multilingual_v2",
+      voice_settings: {
+        stability: 0.32,
+        similarity_boost: 0.78,
+        style: 0.68,
+        use_speaker_boost: true,
+      },
+    }),
+  });
+}
+
+async function sintetizarElevenLabs(texto: string, vozId?: string): Promise<ArrayBuffer | null> {
   const clave = envServidor("ELEVENLABS_API_KEY");
   if (clave.length < 10) return null;
-  const voz = vozElevenLabsId();
-  try {
-    const respuesta = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${voz}`, {
-      method: "POST",
-      headers: {
-        "xi-api-key": clave,
-        Accept: "audio/mpeg",
-        "Content-Type": "application/json",
-      },
-      signal: AbortSignal.timeout(12_000),
-      body: JSON.stringify({
-        text: texto.slice(0, 4000),
-        model_id: "eleven_multilingual_v2",
-        voice_settings: {
-          stability: 0.32,
-          similarity_boost: 0.78,
-          style: 0.68,
-          use_speaker_boost: true,
-        },
-      }),
-    });
-    if (!respuesta.ok) return null;
-    return respuesta.arrayBuffer();
-  } catch {
-    return null;
+  const preferida = vozElevenLabsId(vozId);
+  const voces = preferida === VOZ_DEFECTO_ID ? [VOZ_DEFECTO_ID] : [preferida, VOZ_DEFECTO_ID];
+  for (const voz of voces) {
+    try {
+      const respuesta = await pedirAudioElevenLabs(clave, voz, texto);
+      if (respuesta.ok) return respuesta.arrayBuffer();
+      const detalle = await respuesta.text().catch(() => "");
+      console.error("elevenlabs", respuesta.status, voz, detalle.slice(0, 280));
+      if (respuesta.status === 402 || respuesta.status === 404) continue;
+    } catch (error) {
+      console.error("elevenlabs", voz, error);
+    }
   }
+  return null;
 }

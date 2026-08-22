@@ -15,6 +15,7 @@ import {
 } from "./datos";
 import type { Json } from "./database.types";
 import { supabase } from "./supabase";
+import { VOZ_DEFECTO_ID, vozResuelta } from "./voces";
 
 export const nuevoId = () => crypto.randomUUID();
 
@@ -39,6 +40,7 @@ const CONFIG_DEFECTO: ConfiguracionUsuario = {
   avisosAutomatizaciones: true,
   memoriaActiva: true,
   preferenciaVoz: true,
+  vozId: VOZ_DEFECTO_ID,
 };
 
 function horaCorta(valor: string): string {
@@ -94,6 +96,7 @@ function configDesdeJson(valor: Json): ConfiguracionUsuario {
     avisosAutomatizaciones: o["avisosAutomatizaciones"] !== false,
     memoriaActiva: o["memoriaActiva"] !== false,
     preferenciaVoz: o["preferenciaVoz"] !== false,
+    vozId: vozResuelta(typeof o["vozId"] === "string" ? o["vozId"] : undefined),
   };
 }
 

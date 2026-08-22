@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { Link, useNavigate } from "@tanstack/react-router";
 import { LogOut, Settings, Shield, Volume2, VolumeX } from "lucide-react";
 import { DiloOrbe, type EstadoOrbe } from "@/components/DiloOrbe";
+import { SelectorVozBarra } from "@/components/SelectorVoz";
 import { useAuth } from "@/lib/auth";
 import { useAsistente } from "@/lib/store";
 import {
@@ -84,13 +85,12 @@ export function Dilo() {
     if (grabando) {
       if (dichoVivo) return `Te oigo: “${dichoVivo}”`;
       return enMovil
-        ? "Te escucho. Habla y pulsa el orbe otra vez cuando termines."
-        : "Te escucho. Habla ahora; cuando pares, te respondo.";
+        ? "El micrófono está abierto. Habla y pulsa el orbe otra vez cuando termines."
+        : "El micrófono está abierto. Habla: aquí va a aparecer lo que te oigo.";
     }
-    if (transcribiendo) {
-      return dichoVivo ? `Entendí: “${dichoVivo}”` : "Entendiendo lo que dijiste…";
+    if (transcribiendo || pensando) {
+      return dichoVivo ? `Te oí: “${dichoVivo}”` : "Un momento, lo estoy viendo…";
     }
-    if (pensando) return "Un momento, lo estoy viendo…";
     if (hablando && ultimoAsistente && ultimoAsistente.id !== "msg-welcome") return ultimoAsistente.texto;
     if (!hayMic) return "Este navegador no puede usar el micrófono. Prueba en Chrome.";
     return CONSEJOS[indiceConsejo] ?? CONSEJOS[0];
@@ -114,9 +114,9 @@ export function Dilo() {
       const deWhisper = deNavegador ? { texto: null, cuota: false } : await transcribirAudio(blob);
       const transcrito = deNavegador || deWhisper.texto;
       if (transcrito) {
+        setDichoVivo(transcrito);
         setAviso(null);
         enviarMensaje(transcrito, "voz");
-        setDichoVivo("");
       } else if (deWhisper.cuota) {
         setAviso("No pude transcribir. Usa Chrome y permite el micrófono.");
       } else {
@@ -190,6 +190,10 @@ export function Dilo() {
               <VolumeX className="size-5" />
             )}
           </IconoBarra>
+          <SelectorVozBarra
+            valor={configuracion.vozId}
+            onChange={(vozId) => actualizarConfiguracion({ vozId })}
+          />
           <Link
             to="/configuracion"
             aria-label="Configuración"
@@ -229,7 +233,9 @@ export function Dilo() {
         </p>
         <p
           key={pie}
-          className="mt-2 max-w-md text-center text-[15px] leading-6 text-[#5f6368]"
+          className={`mt-2 max-w-md text-center text-[15px] leading-6 ${
+            grabando ? "text-[#1967d2]" : "text-[#5f6368]"
+          }`}
           style={{ animation: "dilo-texto-entra 0.4s ease-out" }}
         >
           {pie}

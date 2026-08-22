@@ -2,6 +2,7 @@ import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
 import { toast } from "sonner";
 import { PageHeader } from "@/components/panel/PageHeader";
+import { SelectorVoz } from "@/components/SelectorVoz";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -117,6 +118,10 @@ function ConfiguracionPage() {
           texto="El asistente lee en voz alta las confirmaciones y avisos."
           checked={configuracion.preferenciaVoz}
           onChange={(v) => actualizarConfiguracion({ preferenciaVoz: v })}
+        />
+        <SelectorVoz
+          valor={configuracion.vozId}
+          onChange={(vozId) => actualizarConfiguracion({ vozId })}
         />
       </Seccion>
 

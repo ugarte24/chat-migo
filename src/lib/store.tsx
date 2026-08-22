@@ -48,6 +48,7 @@ import {
 } from "./repositorio";
 import { supabaseConfigurado } from "./supabase";
 import { hablar } from "./voz";
+import { VOZ_DEFECTO_ID } from "./voces";
 
 export type { ConfiguracionUsuario, MensajeChat };
 
@@ -101,6 +102,7 @@ const CONFIG_INICIAL: ConfiguracionUsuario = {
   avisosAutomatizaciones: true,
   memoriaActiva: true,
   preferenciaVoz: true,
+  vozId: VOZ_DEFECTO_ID,
 };
 
 async function pedirTurnoDilo(
@@ -221,7 +223,7 @@ export function AsistenteProvider({ children }: { children: ReactNode }) {
         item.tipo === "aclaracion" ||
         item.tipo === "error")
     ) {
-      hablar(item.texto);
+      hablar(item.texto, cfgRef.current.vozId);
     }
   }, []);
 
