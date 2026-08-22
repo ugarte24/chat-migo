@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link } from "@tanstack/react-router";
-import { Menu, AudioLines } from "lucide-react";
+import { Menu } from "lucide-react";
+import { DiloMarca } from "@/components/DiloIcono";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { cn } from "@/lib/utils";
@@ -35,10 +36,7 @@ export function LandingNav() {
     >
       <div className="mx-auto flex h-16 max-w-6xl items-center justify-between gap-4 px-5 md:h-[4.25rem] md:px-8">
         <a href="#inicio" className="flex items-center gap-2 text-[15px] font-extrabold tracking-tight text-foreground">
-          <span className="flex size-8 items-center justify-center rounded-lg bg-gradient-accent text-white">
-            <AudioLines className="size-4" aria-hidden />
-          </span>
-          Dilo
+          <DiloMarca className="font-extrabold tracking-tight" />
         </a>
 
         <nav className="hidden items-center gap-7 lg:flex" aria-label="Secciones">
@@ -70,7 +68,9 @@ export function LandingNav() {
           </SheetTrigger>
           <SheetContent side="right" className="w-80">
             <SheetHeader>
-              <SheetTitle className="text-left font-extrabold">Dilo</SheetTitle>
+              <SheetTitle className="text-left font-extrabold">
+                <DiloMarca className="font-extrabold" />
+              </SheetTitle>
             </SheetHeader>
             <nav className="mt-8 flex flex-col gap-4" aria-label="Menú móvil">
               {NAV_LINKS.map((item) => (

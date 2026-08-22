@@ -1,5 +1,6 @@
 import { Outlet, createFileRoute, Link, Navigate, useRouterState } from "@tanstack/react-router";
 import { ArrowLeft } from "lucide-react";
+import { DiloIcono } from "@/components/DiloIcono";
 import { useAuth } from "@/lib/auth";
 import { supabaseConfigurado } from "@/lib/supabase";
 
@@ -33,9 +34,10 @@ function AppLayout() {
       <header className="flex h-14 items-center gap-3 border-b border-[#dadce0] bg-white px-4">
         <Link
           to="/panel"
-          className="inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-sm text-[#1a73e8] hover:bg-[#e8f0fe]"
+          className="inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-sm text-[#2563eb] hover:bg-[#eff6ff]"
         >
           <ArrowLeft className="size-4" />
+          <DiloIcono className="size-5" />
           Dilo
         </Link>
         <p className="text-[16px] text-[#202124]">Configuración</p>

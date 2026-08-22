@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
-import { AudioLines, CheckCircle2, CircleAlert, HelpCircle, Mic, Send, Sparkles } from "lucide-react";
+import { CheckCircle2, CircleAlert, HelpCircle, Mic, Send, Sparkles } from "lucide-react";
+import { DiloIcono } from "@/components/DiloIcono";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import type { MensajeChat } from "@/lib/store";
@@ -60,9 +61,7 @@ export function ChatWhatsApp({ mensajes, onEnviar, sugerencias }: Props) {
   return (
     <div className="flex h-full min-h-[32rem] flex-col overflow-hidden rounded-3xl border border-border bg-card shadow-glow">
       <header className="flex items-center gap-3 border-b border-border bg-surface px-4 py-3">
-        <span className="flex size-10 items-center justify-center rounded-full bg-gradient-accent text-primary-foreground">
-          <AudioLines className="size-5" />
-        </span>
+        <DiloIcono className="size-10" />
         <div className="flex-1">
           <p className="text-sm font-semibold leading-tight">Dilo</p>
           <p className="text-xs text-primary">en línea · interpreta texto y voz</p>

@@ -9,9 +9,9 @@ import {
   Plug,
   Repeat,
   Settings,
-  Shield,
   Users,
 } from "lucide-react";
+import { DiloIcono } from "@/components/DiloIcono";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { useAuth } from "@/lib/auth";
@@ -37,9 +37,7 @@ export function AdminShell({ children }: { children: ReactNode }) {
     <div className="flex min-h-screen bg-background">
       <aside className="hidden w-64 shrink-0 flex-col border-r border-border bg-sidebar lg:flex">
         <Link to="/" className="flex items-center gap-2 border-b border-border px-5 py-5">
-          <span className="flex size-9 items-center justify-center rounded-xl bg-primary-dark text-primary-foreground">
-            <Shield className="size-5" />
-          </span>
+          <DiloIcono className="size-9" />
           <div>
             <p className="font-display text-base font-semibold leading-tight">Dilo</p>
             <p className="text-[11px] text-muted-foreground">Administración</p>
@@ -76,7 +74,10 @@ export function AdminShell({ children }: { children: ReactNode }) {
             </SheetTrigger>
             <SheetContent side="left" className="w-72 p-0">
               <SheetHeader className="border-b border-border px-4 py-4 text-left">
-                <SheetTitle>Administración</SheetTitle>
+                <SheetTitle className="inline-flex items-center gap-2">
+                  <DiloIcono className="size-6" />
+                  Administración
+                </SheetTitle>
               </SheetHeader>
               <nav className="space-y-1 p-3">
                 {NAV.map((item) => (

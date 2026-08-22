@@ -22,6 +22,7 @@ import {
   Zap,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { DiloIcono } from "@/components/DiloIcono";
 import { AutomationPreview } from "@/components/landing/AutomationPreview";
 import { HeroConversation } from "@/components/landing/HeroConversation";
 import { InteractiveDemo } from "@/components/landing/InteractiveDemo";
@@ -462,7 +463,10 @@ function Landing() {
       <footer className="border-t border-[#E2E8F0] px-5 py-16 md:px-8">
         <div className="mx-auto flex max-w-6xl flex-col gap-10 md:flex-row md:justify-between">
           <div>
-            <p className="text-sm font-extrabold">Dilo</p>
+            <p className="inline-flex items-center gap-2 text-sm font-extrabold">
+              <DiloIcono className="size-6" />
+              Dilo
+            </p>
             <p className="mt-2 text-sm text-[#64748B]">Organiza. Recuerda. Automatiza.</p>
           </div>
           <nav className="flex flex-wrap gap-x-6 gap-y-3 text-sm text-[#64748B]" aria-label="Pie de página">

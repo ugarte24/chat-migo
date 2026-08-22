@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { DiloIcono } from "@/components/DiloIcono";
 import { cn } from "@/lib/utils";
 
 type Paso = 0 | 1 | 2 | 3 | 4 | 5;
@@ -30,7 +31,8 @@ export function HeroConversation() {
           <span className="size-2 rounded-full bg-primary/30" />
           <span className="size-2 rounded-full bg-ai/30" />
           <span className="size-2 rounded-full bg-border" />
-          <p className="ml-2 text-xs font-medium text-muted-foreground">Dilo</p>
+          <DiloIcono className="size-4" />
+          <p className="text-xs font-medium text-muted-foreground">Dilo</p>
         </div>
 
         <div className="min-h-[22rem] space-y-3 bg-[#F8FAFC] px-4 py-5">

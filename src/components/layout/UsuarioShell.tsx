@@ -15,6 +15,7 @@ import {
   Settings,
   Shield,
 } from "lucide-react";
+import { DiloIcono } from "@/components/DiloIcono";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { useAuth } from "@/lib/auth";
@@ -67,7 +68,12 @@ export function UsuarioShell({ children }: { children: ReactNode }) {
             </SheetTrigger>
             <SheetContent side="left" className="w-72 p-0">
               <SheetHeader className="border-b border-border px-4 py-4 text-left">
-                <SheetTitle className="font-display">Dilo</SheetTitle>
+                <SheetTitle className="font-display">
+                  <span className="inline-flex items-center gap-2">
+                    <DiloIcono className="size-6" />
+                    Dilo
+                  </span>
+                </SheetTitle>
               </SheetHeader>
               <nav className="space-y-1 p-3">
                 {NAV.map((item) => (
@@ -108,9 +114,7 @@ export function UsuarioShell({ children }: { children: ReactNode }) {
 function Marca() {
   return (
     <Link to="/" className="flex items-center gap-2 border-b border-border px-5 py-5">
-      <span className="flex size-9 items-center justify-center rounded-xl bg-gradient-accent text-primary-foreground">
-        <AudioLines className="size-5" />
-      </span>
+      <DiloIcono className="size-9" />
       <span className="font-display text-base font-semibold">Dilo</span>
     </Link>
   );
@@ -140,7 +144,7 @@ function NavItem({
           : "text-muted-foreground hover:bg-sidebar-accent hover:text-foreground",
       )}
     >
-      <Icono className="size-4 shrink-0" />
+      {to === "/panel" ? <DiloIcono className="size-4" /> : <Icono className="size-4 shrink-0" />}
       {etiqueta}
     </Link>
   );

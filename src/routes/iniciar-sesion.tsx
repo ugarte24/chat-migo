@@ -1,6 +1,6 @@
 import { createFileRoute, Link, Navigate } from "@tanstack/react-router";
 import { useState, type FormEvent } from "react";
-import { AudioLines } from "lucide-react";
+import { DiloIcono } from "@/components/DiloIcono";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -38,9 +38,7 @@ function IniciarSesionPage() {
     <main className="flex min-h-screen items-center justify-center bg-hero-glow px-4">
       <div className="w-full max-w-md">
         <Link to="/" className="mb-8 flex items-center justify-center gap-2">
-          <span className="flex size-9 items-center justify-center rounded-xl bg-gradient-accent text-white">
-            <AudioLines className="size-4" />
-          </span>
+          <DiloIcono className="size-9" />
           <span className="font-display text-lg font-semibold">Dilo</span>
         </Link>
         <form onSubmit={(e) => void onSubmit(e)} className="panel-card space-y-4 p-6">

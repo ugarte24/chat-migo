@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { Link, useNavigate } from "@tanstack/react-router";
 import { LogOut, Settings, Shield, Volume2, VolumeX } from "lucide-react";
 import { DiloOrbe, type EstadoOrbe } from "@/components/DiloOrbe";
+import { DiloIcono } from "@/components/DiloIcono";
 import { SelectorVozBarra } from "@/components/SelectorVoz";
 import { useAuth } from "@/lib/auth";
 import { useAsistente } from "@/lib/store";
@@ -175,7 +176,10 @@ export function Dilo() {
         <span className="dilo-mancha-fondo absolute bottom-24 right-1/4 size-56 rounded-full bg-[#22d3ee]/16 blur-3xl [animation-delay:0.6s]" />
       </div>
       <header className="relative z-10 flex h-16 shrink-0 items-center gap-3 px-4 sm:px-5">
-        <span className="text-[17px] font-medium tracking-tight text-[#202124]">Dilo</span>
+        <span className="inline-flex items-center gap-2 text-[17px] font-medium tracking-tight text-[#202124]">
+          <DiloIcono className="size-7" />
+          Dilo
+        </span>
         <div className="ml-auto flex items-center gap-0.5 rounded-full bg-white/70 p-0.5 shadow-[0_1px_2px_rgb(60_64_67/0.12)] ring-1 ring-[#dadce0]/70 backdrop-blur-md">
           <IconoBarra
             etiqueta={configuracion.preferenciaVoz ? "Silenciar a Dilo" : "Dilo habla"}

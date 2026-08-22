@@ -92,6 +92,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
         content:
           "Dilo transforma tus mensajes de WhatsApp en tareas, recordatorios, eventos y automatizaciones.",
       },
+      { name: "theme-color", content: "#0ea5e9" },
       { property: "og:title", content: "Dilo" },
       {
         property: "og:description",
