@@ -62,6 +62,7 @@ const MENSAJE_BIENVENIDA = (nombre: string): MensajeChat => {
       : "Hola. Estoy aquí. Cuéntame qué tienes entre manos.",
     tipo: "texto",
     hora: "08:00",
+    creadoEn: new Date().toISOString(),
   };
 };
 
@@ -220,7 +221,12 @@ export function AsistenteProvider({ children }: { children: ReactNode }) {
   );
 
   const push = useCallback((m: Omit<MensajeChat, "id" | "hora">) => {
-    const item: MensajeChat = { ...m, id: nuevoId(), hora: horaAhora() };
+    const item: MensajeChat = {
+      ...m,
+      id: nuevoId(),
+      hora: horaAhora(),
+      creadoEn: m.creadoEn ?? new Date().toISOString(),
+    };
     setMensajes((p) => [...p, item]);
     void guardarMensaje(item, uidRef.current);
     if (

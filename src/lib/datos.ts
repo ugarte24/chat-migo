@@ -82,6 +82,7 @@ export interface MensajeChat {
   texto: string;
   tipo: "texto" | "voz" | "analisis" | "confirmacion" | "error" | "aclaracion" | "proceso";
   hora: string;
+  creadoEn?: string;
   analisis?: {
     intencion: string;
     actividad: string;

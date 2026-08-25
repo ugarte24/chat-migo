@@ -1,5 +1,7 @@
-import { createFileRoute, Navigate } from "@tanstack/react-router";
+import { createFileRoute } from "@tanstack/react-router";
+import { CuadernoDilo } from "@/components/CuadernoDilo";
 
 export const Route = createFileRoute("/_app/chat")({
-  component: () => <Navigate to="/panel" />,
+  head: () => ({ meta: [{ title: "Conversación | Dilo" }] }),
+  component: CuadernoDilo,
 });

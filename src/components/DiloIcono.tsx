@@ -43,15 +43,13 @@ export function DiloIcono({
 
 export function DiloMarca({
   className,
-  tamano = "md",
 }: {
   className?: string;
   tamano?: "sm" | "md";
 }) {
   return (
-    <span className={cn("inline-flex items-center gap-2", className)}>
-      <DiloIcono className={tamano === "sm" ? "size-6" : "size-8"} />
-      <span>Dilo</span>
+    <span className={className}>
+      Dilo
     </span>
   );
 }

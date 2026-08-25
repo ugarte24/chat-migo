@@ -37,7 +37,6 @@ export function AdminShell({ children }: { children: ReactNode }) {
     <div className="flex min-h-screen bg-background">
       <aside className="hidden w-64 shrink-0 flex-col border-r border-border bg-sidebar lg:flex">
         <Link to="/" className="flex items-center gap-2 border-b border-border px-5 py-5">
-          <DiloIcono className="size-9" />
           <div>
             <p className="font-display text-base font-semibold leading-tight">Dilo</p>
             <p className="text-[11px] text-muted-foreground">Administración</p>

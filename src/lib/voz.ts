@@ -14,6 +14,72 @@ let generacionHabla = 0;
 let hablaEnCurso: Promise<void> = Promise.resolve();
 const cacheHablar = new Map<string, ArrayBuffer>();
 
+type NivelCb = (nivel: number) => void;
+const oyentesNivel = new Set<NivelCb>();
+let nivelVoz = 0;
+let rafNivel = 0;
+let suavizadoNivel = 0;
+let pararLatidoActual: (() => void) | null = null;
+
+function publicarNivel(n: number) {
+  nivelVoz = Math.min(1, Math.max(0, n));
+  oyentesNivel.forEach((cb) => cb(nivelVoz));
+}
+
+export function suscribirNivelVoz(cb: NivelCb) {
+  oyentesNivel.add(cb);
+  cb(nivelVoz);
+  return () => {
+    oyentesNivel.delete(cb);
+  };
+}
+
+function arrancarMedidor(analizador: AnalyserNode, suelo = 0.015) {
+  const datos = new Uint8Array(analizador.fftSize);
+  const tick = () => {
+    analizador.getByteTimeDomainData(datos);
+    let suma = 0;
+    for (let i = 0; i < datos.length; i++) {
+      const v = (datos[i]! - 128) / 128;
+      suma += v * v;
+    }
+    const rms = Math.sqrt(suma / datos.length);
+    const crudo = Math.min(1, Math.max(0, (rms - suelo) / 0.14));
+    suavizadoNivel += (crudo - suavizadoNivel) * 0.35;
+    publicarNivel(suavizadoNivel);
+    rafNivel = requestAnimationFrame(tick);
+  };
+  if (rafNivel) cancelAnimationFrame(rafNivel);
+  rafNivel = requestAnimationFrame(tick);
+}
+
+function pararMedidor() {
+  if (rafNivel) cancelAnimationFrame(rafNivel);
+  rafNivel = 0;
+  suavizadoNivel = 0;
+  publicarNivel(0);
+}
+
+function latidoSimulado() {
+  let id = 0;
+  let vivo = true;
+  const tick = () => {
+    if (!vivo) return;
+    publicarNivel(0.28 + Math.random() * 0.5);
+    id = window.setTimeout(tick, 80 + Math.random() * 80);
+  };
+  tick();
+  const parar = () => {
+    if (!vivo) return;
+    vivo = false;
+    window.clearTimeout(id);
+    publicarNivel(0);
+    if (pararLatidoActual === parar) pararLatidoActual = null;
+  };
+  pararLatidoActual = parar;
+  return parar;
+}
+
 export function esIOS() {
   if (typeof navigator === "undefined") return false;
   return (
@@ -129,6 +195,22 @@ async function reproducirEnElemento(buf: ArrayBuffer) {
   }
   el.src = url;
   audioActual = el;
+  let pararFake: (() => void) | null = null;
+  const ctx = await contextoListo();
+  if (ctx) {
+    try {
+      const fuente = ctx.createMediaElementSource(el);
+      const analizador = ctx.createAnalyser();
+      analizador.fftSize = 1024;
+      fuente.connect(analizador);
+      analizador.connect(ctx.destination);
+      arrancarMedidor(analizador, 0.008);
+    } catch {
+      pararFake = latidoSimulado();
+    }
+  } else {
+    pararFake = latidoSimulado();
+  }
   try {
     await el.play();
     await new Promise<void>((resolve) => {
@@ -141,6 +223,8 @@ async function reproducirEnElemento(buf: ArrayBuffer) {
   } catch {
     return false;
   } finally {
+    pararFake?.();
+    pararMedidor();
     URL.revokeObjectURL(url);
     if (audioActual === el) audioActual = null;
   }
@@ -161,9 +245,13 @@ async function reproducirEnContexto(buf: ArrayBuffer) {
     ganancia.gain.value = gananciaVoz();
     fuente.buffer = decoded;
     fuente.connect(ganancia);
-    ganancia.connect(ctx.destination);
+    const analizador = ctx.createAnalyser();
+    analizador.fftSize = 1024;
+    ganancia.connect(analizador);
+    analizador.connect(ctx.destination);
     fuenteActual = fuente;
     gananciaActual = ganancia;
+    arrancarMedidor(analizador, 0.006);
     await new Promise<void>((resolve) => {
       fuente.onended = () => resolve();
       try {
@@ -172,10 +260,12 @@ async function reproducirEnContexto(buf: ArrayBuffer) {
         resolve();
       }
     });
+    pararMedidor();
     if (fuenteActual === fuente) fuenteActual = null;
     if (gananciaActual === ganancia) gananciaActual = null;
     return true;
   } catch {
+    pararMedidor();
     return false;
   }
 }
@@ -480,6 +570,7 @@ function iniciarSoloReconocimiento(
   rec.onresult = (evento) => {
     const texto = acumulado.aplicar(evento);
     onTexto?.(texto);
+    publicarNivel(0.42 + Math.random() * 0.45);
     programarCorte();
   };
   rec.onerror = (evento) => {
@@ -496,13 +587,23 @@ function iniciarSoloReconocimiento(
     }
   };
   rec.start();
+  publicarNivel(0.14);
+  const decaer = window.setInterval(() => {
+    if (cerrado) {
+      window.clearInterval(decaer);
+      return;
+    }
+    publicarNivel(Math.max(0.12, nivelVoz * 0.78));
+  }, 130);
 
   return {
     detener: () =>
       new Promise((resolve) => {
         cerrado = true;
+        window.clearInterval(decaer);
         window.clearTimeout(silencioId);
         window.clearTimeout(topeId);
+        pararMedidor();
         try {
           rec.stop();
         } catch {
@@ -588,6 +689,8 @@ async function iniciarGrabacionArchivo(alCortar?: () => void, continuo = false):
         suma += v * v;
       }
       const rms = Math.sqrt(suma / datos.length);
+      suavizadoNivel += (Math.min(1, Math.max(0, (rms - (movil ? 0.02 : 0.025)) / 0.14)) - suavizadoNivel) * 0.35;
+      publicarNivel(suavizadoNivel);
       if (rms > (movil ? 0.02 : 0.025)) {
         huboVoz = true;
         ultimoSonido = Date.now();
@@ -618,6 +721,7 @@ async function iniciarGrabacionArchivo(alCortar?: () => void, continuo = false):
       new Promise((resolve, reject) => {
         cerrado = true;
         vivo.parar();
+        pararMedidor();
         try {
           fuenteMic?.disconnect();
         } catch {
@@ -721,6 +825,7 @@ async function hablarEnNavegador(texto: string) {
       window.setTimeout(resolve, 400);
     });
   await vocesListas();
+  const pararLatido = latidoSimulado();
   await new Promise<void>((resolve) => {
     const utterance = new SpeechSynthesisUtterance(texto);
     utterance.lang = "es-VE";
@@ -739,10 +844,13 @@ async function hablarEnNavegador(texto: string) {
     window.speechSynthesis.speak(utterance);
     window.setTimeout(listo, Math.min(12_000, texto.length * 90 + 1_800));
   });
+  pararLatido();
 }
 
 export function silenciar() {
   generacionHabla += 1;
+  pararLatidoActual?.();
+  pararMedidor();
   if (sintesisVozDisponible()) window.speechSynthesis.cancel();
   try {
     fuenteActual?.stop();

@@ -223,6 +223,7 @@ export async function cargarEstadoRemoto(usuarioId: string): Promise<EstadoRemot
           texto: fila.mensaje,
           tipo: fila.tipo,
           hora: `${String(creado.getHours()).padStart(2, "0")}:${String(creado.getMinutes()).padStart(2, "0")}`,
+          creadoEn: fila.created_at,
         },
       ];
     }),

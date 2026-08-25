@@ -69,10 +69,7 @@ export function UsuarioShell({ children }: { children: ReactNode }) {
             <SheetContent side="left" className="w-72 p-0">
               <SheetHeader className="border-b border-border px-4 py-4 text-left">
                 <SheetTitle className="font-display">
-                  <span className="inline-flex items-center gap-2">
-                    <DiloIcono className="size-6" />
-                    Dilo
-                  </span>
+                  Dilo
                 </SheetTitle>
               </SheetHeader>
               <nav className="space-y-1 p-3">
@@ -113,8 +110,7 @@ export function UsuarioShell({ children }: { children: ReactNode }) {
 
 function Marca() {
   return (
-    <Link to="/" className="flex items-center gap-2 border-b border-border px-5 py-5">
-      <DiloIcono className="size-9" />
+    <Link to="/" className="flex items-center border-b border-border px-5 py-5">
       <span className="font-display text-base font-semibold">Dilo</span>
     </Link>
   );
