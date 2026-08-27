@@ -2,8 +2,8 @@ import { supabase } from "./supabase";
 
 declare global {
   interface Window {
-    DiloNativo?: { plataforma?: string; tokenFcm?: string };
-    DiloPuente?: { plataforma?: () => string; tokenFcm?: () => string };
+    DiloNativo?: { plataforma?: string; version?: string; tokenFcm?: string };
+    DiloPuente?: { plataforma?: () => string; version?: () => string; tokenFcm?: () => string };
   }
 }
 
@@ -12,6 +12,22 @@ export function esCascaraAndroid() {
   if (typeof window === "undefined") return false;
   if (/DiloAndroid/i.test(navigator.userAgent)) return true;
   return window.DiloNativo?.plataforma === "android";
+}
+
+/** versionName de la APK (p. ej. 1.0.1). */
+export function versionCascaraAndroid() {
+  if (typeof window === "undefined") return null;
+  const inyectada = window.DiloNativo?.version?.trim();
+  if (inyectada) return inyectada;
+  try {
+    const puente = window.DiloPuente?.version?.()?.trim();
+    if (puente) return puente;
+  } catch {
+    /* el puente nativo no está */
+  }
+  const marca = navigator.userAgent.match(/DiloAndroid\/(\S+)/i)?.[1];
+  if (!marca) return null;
+  return marca === "1" ? "1.0.0" : marca;
 }
 
 /**

@@ -16,6 +16,20 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Versión
+        id: ver
+        run: |
+          NAME=$(sed -n 's/.*versionName = "\([^"]*\)".*/\1/p' android/app/build.gradle.kts | head -1)
+          CODE=$(sed -n 's/.*versionCode = \([0-9]*\).*/\1/p' android/app/build.gradle.kts | head -1)
+          if [ -z "$NAME" ] || [ -z "$CODE" ]; then
+            echo "No se pudo leer versionName/versionCode de android/app/build.gradle.kts"
+            exit 1
+          fi
+          echo "name=${NAME}" >> "$GITHUB_OUTPUT"
+          echo "code=${CODE}" >> "$GITHUB_OUTPUT"
+          echo "archivo=Dilo-${NAME}.apk" >> "$GITHUB_OUTPUT"
+          echo "APK Dilo ${NAME} (${CODE})"
+
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
@@ -49,7 +63,7 @@ jobs:
 
       - uses: actions/upload-artifact@v4
         with:
-          name: dilo-apk
+          name: Dilo-${{ steps.ver.outputs.name }}
           path: android/app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
 
@@ -57,6 +71,9 @@ jobs:
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          APK_VERSION: ${{ steps.ver.outputs.name }}
+          APK_CODE: ${{ steps.ver.outputs.code }}
+          APK_ARCHIVO: ${{ steps.ver.outputs.archivo }}
         run: |
           set -euo pipefail
           if [ -z "${SUPABASE_URL:-}" ] || [ -z "${SUPABASE_SERVICE_ROLE_KEY:-}" ]; then
@@ -64,29 +81,40 @@ jobs:
             exit 0
           fi
           APK="android/app/build/outputs/apk/debug/app-debug.apk"
+          cp "${APK}" "/tmp/${APK_ARCHIVO}"
+          printf '{"version":"%s","versionCode":%s,"archivo":"%s"}\n' \
+            "${APK_VERSION}" "${APK_CODE}" "${APK_ARCHIVO}" > /tmp/latest.json
           curl -sS -o /dev/null -X POST "${SUPABASE_URL}/storage/v1/bucket" \
             -H "Authorization: Bearer ${SUPABASE_SERVICE_ROLE_KEY}" \
             -H "apikey: ${SUPABASE_SERVICE_ROLE_KEY}" \
             -H "Content-Type: application/json" \
             -d '{"id":"apk","name":"apk","public":false,"fileSizeLimit":104857600}' || true
-          CODIGO=$(curl -sS -o /tmp/apk-upload.json -w "%{http_code}" -X POST \
-            "${SUPABASE_URL}/storage/v1/object/apk/dilo.apk" \
-            -H "Authorization: Bearer ${SUPABASE_SERVICE_ROLE_KEY}" \
-            -H "apikey: ${SUPABASE_SERVICE_ROLE_KEY}" \
-            -H "x-upsert: true" \
-            -H "Content-Type: application/vnd.android.package-archive" \
-            --data-binary "@${APK}")
-          if [ "${CODIGO}" != "200" ] && [ "${CODIGO}" != "201" ]; then
-            CODIGO=$(curl -sS -o /tmp/apk-upload.json -w "%{http_code}" -X PUT \
-              "${SUPABASE_URL}/storage/v1/object/apk/dilo.apk" \
+          subir() {
+            local ruta="$1"
+            local tipo="$2"
+            local archivo="$3"
+            local codigo
+            codigo=$(curl -sS -o /tmp/apk-upload.json -w "%{http_code}" -X POST \
+              "${SUPABASE_URL}/storage/v1/object/apk/${ruta}" \
               -H "Authorization: Bearer ${SUPABASE_SERVICE_ROLE_KEY}" \
               -H "apikey: ${SUPABASE_SERVICE_ROLE_KEY}" \
               -H "x-upsert: true" \
-              -H "Content-Type: application/vnd.android.package-archive" \
-              --data-binary "@${APK}")
-          fi
-          echo "Storage HTTP ${CODIGO}"
-          if [ "${CODIGO}" != "200" ] && [ "${CODIGO}" != "201" ]; then
-            cat /tmp/apk-upload.json
-            exit 1
-          fi
+              -H "Content-Type: ${tipo}" \
+              --data-binary "@${archivo}")
+            if [ "${codigo}" != "200" ] && [ "${codigo}" != "201" ]; then
+              codigo=$(curl -sS -o /tmp/apk-upload.json -w "%{http_code}" -X PUT \
+                "${SUPABASE_URL}/storage/v1/object/apk/${ruta}" \
+                -H "Authorization: Bearer ${SUPABASE_SERVICE_ROLE_KEY}" \
+                -H "apikey: ${SUPABASE_SERVICE_ROLE_KEY}" \
+                -H "x-upsert: true" \
+                -H "Content-Type: ${tipo}" \
+                --data-binary "@${archivo}")
+            fi
+            echo "${ruta} HTTP ${codigo}"
+            if [ "${codigo}" != "200" ] && [ "${codigo}" != "201" ]; then
+              cat /tmp/apk-upload.json
+              exit 1
+            fi
+          }
+          subir "${APK_ARCHIVO}" "application/vnd.android.package-archive" "/tmp/${APK_ARCHIVO}"
+          subir "latest.json" "application/json" "/tmp/latest.json"

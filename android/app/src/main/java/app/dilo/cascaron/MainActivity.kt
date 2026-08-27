@@ -82,6 +82,8 @@ class MainActivity : ComponentActivity() {
         if (!::web.isInitialized) return
         val payload = JSONObject()
             .put("plataforma", "android")
+            .put("version", BuildConfig.VERSION_NAME)
+            .put("versionCode", BuildConfig.VERSION_CODE)
             .put("tokenFcm", DiloEstado.tokenFcm)
             .toString()
         web.evaluateJavascript(
@@ -148,7 +150,7 @@ class MainActivity : ComponentActivity() {
             setSupportZoom(false)
             builtInZoomControls = false
             displayZoomControls = false
-            userAgentString = "$userAgentString DiloAndroid/1"
+            userAgentString = "$userAgentString DiloAndroid/${BuildConfig.VERSION_NAME}"
         }
 
         vista.addJavascriptInterface(DiloPuente(), "DiloPuente")
@@ -200,6 +202,9 @@ class MainActivity : ComponentActivity() {
     inner class DiloPuente {
         @JavascriptInterface
         fun plataforma(): String = "android"
+
+        @JavascriptInterface
+        fun version(): String = BuildConfig.VERSION_NAME
 
         @JavascriptInterface
         fun tokenFcm(): String = DiloEstado.tokenFcm

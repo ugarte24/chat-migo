@@ -2,7 +2,45 @@ import { createFileRoute } from "@tanstack/react-router";
 import { exigirAdministrador, supabaseServicio } from "@/lib/supabase-servidor";
 
 const CUBETA = "apk";
-const ARCHIVO = "dilo.apk";
+const MANIFESTO = "latest.json";
+const LEGADO = "dilo.apk";
+
+interface ManifestoApk {
+  version: string;
+  versionCode: number;
+  archivo: string;
+}
+
+interface ArchivoStorage {
+  name: string;
+  updated_at?: string;
+  created_at?: string;
+  metadata?: Record<string, unknown> | null;
+}
+
+function extraerVersion(nombre: string) {
+  const marca = nombre.match(/^Dilo-(.+)\.apk$/i)?.[1];
+  return marca ?? null;
+}
+
+function tamanoDe(item: ArchivoStorage) {
+  const size = item.metadata?.["size"];
+  return typeof size === "number" ? size : null;
+}
+
+async function leerManifesto(
+  db: NonNullable<ReturnType<typeof supabaseServicio>>,
+): Promise<ManifestoApk | null> {
+  const { data, error } = await db.storage.from(CUBETA).download(MANIFESTO);
+  if (error || !data) return null;
+  try {
+    const parsed = JSON.parse(await data.text()) as ManifestoApk;
+    if (parsed.archivo && parsed.version) return parsed;
+  } catch {
+    return null;
+  }
+  return null;
+}
 
 export const Route = createFileRoute("/api/apk")({
   server: {
@@ -18,18 +56,28 @@ export const Route = createFileRoute("/api/apk")({
         }
 
         const info = new URL(request.url).searchParams.has("info");
-        const { data: lista, error: errorLista } = await db.storage.from(CUBETA).list("", {
-          search: ARCHIVO,
-          limit: 10,
-        });
+        const { data: lista, error: errorLista } = await db.storage.from(CUBETA).list("", { limit: 100 });
         if (errorLista) {
           return Response.json(
             { error: errorLista.message, disponible: false },
             { status: errorLista.message.includes("not found") ? 404 : 400 },
           );
         }
-        const archivo = (lista ?? []).find((item) => item.name === ARCHIVO);
-        if (!archivo) {
+        const items = (lista ?? []) as ArchivoStorage[];
+        const manifesto = await leerManifesto(db);
+
+        let nombre = manifesto?.archivo;
+        if (nombre && !items.some((item) => item.name === nombre)) nombre = undefined;
+        if (!nombre) {
+          const versionados = items
+            .filter((item) => /^Dilo-.+\.apk$/i.test(item.name))
+            .sort((a, b) => (b.updated_at ?? "").localeCompare(a.updated_at ?? ""));
+          nombre = versionados[0]?.name;
+        }
+        if (!nombre && items.some((item) => item.name === LEGADO)) nombre = LEGADO;
+
+        const archivo = items.find((item) => item.name === nombre);
+        if (!nombre || !archivo) {
           return Response.json(
             {
               disponible: false,
@@ -39,19 +87,26 @@ export const Route = createFileRoute("/api/apk")({
           );
         }
 
+        const version =
+          manifesto?.archivo === nombre ? manifesto.version : extraerVersion(nombre);
+        const versionCode = manifesto?.archivo === nombre ? manifesto.versionCode : null;
+
         if (info) {
           return Response.json({
             disponible: true,
+            version,
+            versionCode,
+            archivo: nombre,
             actualizado: archivo.updated_at ?? archivo.created_at,
-            tamano: archivo.metadata && typeof archivo.metadata["size"] === "number" ? archivo.metadata["size"] : null,
+            tamano: tamanoDe(archivo),
           });
         }
 
-        const { data, error } = await db.storage.from(CUBETA).createSignedUrl(ARCHIVO, 120);
+        const { data, error } = await db.storage.from(CUBETA).createSignedUrl(nombre, 120);
         if (error || !data?.signedUrl) {
           return Response.json({ error: error?.message || "No se pudo firmar la descarga." }, { status: 400 });
         }
-        return Response.json({ url: data.signedUrl });
+        return Response.json({ url: data.signedUrl, archivo: nombre, version });
       },
     },
   },

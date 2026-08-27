@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { useAuth } from "@/lib/auth";
+import { esCascaraAndroid, versionCascaraAndroid } from "@/lib/nativo";
 import { actualizarDatosPerfil } from "@/lib/repositorio";
 import { useAsistente } from "@/lib/store";
 
@@ -136,6 +137,11 @@ function ConfiguracionPage() {
         >
           Cerrar sesión
         </Button>
+        {esCascaraAndroid() ? (
+          <p className="text-xs text-muted-foreground">
+            Aplicación Dilo {versionCascaraAndroid() ?? ""}
+          </p>
+        ) : null}
       </Seccion>
     </div>
   );

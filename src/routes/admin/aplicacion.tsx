@@ -12,6 +12,8 @@ export const Route = createFileRoute("/admin/aplicacion")({
 
 interface InfoApk {
   disponible: boolean;
+  version: string | null;
+  archivo: string | null;
   actualizado: string | null;
   tamano: number | null;
   error: string | null;
@@ -30,14 +32,28 @@ function AplicacionPage() {
 
   const cargar = useCallback(async () => {
     if (!supabase) {
-      setInfo({ disponible: false, actualizado: null, tamano: null, error: "Supabase no está configurado." });
+      setInfo({
+        disponible: false,
+        version: null,
+        archivo: null,
+        actualizado: null,
+        tamano: null,
+        error: "Supabase no está configurado.",
+      });
       setCargando(false);
       return;
     }
     const { data } = await supabase.auth.getSession();
     const token = data.session?.access_token;
     if (!token) {
-      setInfo({ disponible: false, actualizado: null, tamano: null, error: "Debes iniciar sesión." });
+      setInfo({
+        disponible: false,
+        version: null,
+        archivo: null,
+        actualizado: null,
+        tamano: null,
+        error: "Debes iniciar sesión.",
+      });
       setCargando(false);
       return;
     }
@@ -47,6 +63,8 @@ function AplicacionPage() {
     const cuerpo = (await res.json().catch(() => ({}))) as Partial<InfoApk> & { error?: string };
     setInfo({
       disponible: Boolean(cuerpo.disponible),
+      version: cuerpo.version ?? null,
+      archivo: cuerpo.archivo ?? null,
       actualizado: cuerpo.actualizado ?? null,
       tamano: cuerpo.tamano ?? null,
       error: cuerpo.error ?? null,
@@ -84,6 +102,7 @@ function AplicacionPage() {
   const fecha = info?.actualizado
     ? new Date(info.actualizado).toLocaleString("es", { dateStyle: "medium", timeStyle: "short" })
     : null;
+  const nombreArchivo = info?.archivo || (info?.version ? `Dilo-${info.version}.apk` : "Dilo.apk");
 
   return (
     <div>
@@ -97,8 +116,10 @@ function AplicacionPage() {
           <p className="text-sm text-muted-foreground">Comprobando si hay un instalador…</p>
         ) : info?.disponible ? (
           <p className="text-sm text-muted-foreground">
-            Lista para instalar{fecha ? ` · ${fecha}` : ""}
-            {tamano ? ` · ${tamano}` : ""}. Instálala encima de la anterior, sin borrar la app.
+            {info.version ? `Versión ${info.version}` : "Lista para instalar"}
+            {fecha ? ` · ${fecha}` : ""}
+            {tamano ? ` · ${tamano}` : ""}. El archivo es {nombreArchivo}. Instálala encima de la
+            anterior, sin borrar la app.
           </p>
         ) : (
           <p className="text-sm text-muted-foreground">
@@ -108,7 +129,7 @@ function AplicacionPage() {
         )}
         <div className="flex flex-wrap gap-2">
           <Button onClick={() => void descargar()} disabled={bajando || !info?.disponible}>
-            {bajando ? "Preparando…" : "Descargar Dilo.apk"}
+            {bajando ? "Preparando…" : `Descargar ${nombreArchivo}`}
           </Button>
           <Button variant="outline" onClick={() => void cargar()} disabled={cargando}>
             Actualizar estado
