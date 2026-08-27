@@ -36,9 +36,10 @@ export interface MotorAutomatizacion {
 
 /** Implementaciones vivas en el código. */
 export const SERVICIOS_FUTUROS = [
-  "Dilo / ChatGPT con herramientas (/api/dilo)",
+  "Dilo / Gemini o ChatGPT con herramientas (/api/dilo)",
   "Voz ElevenLabs (/api/hablar) · Voice ID copiado",
   "Whisper (/api/transcribir)",
+  "Avisos FCM a la APK (/api/ejecutar)",
   "Supabase (auth + RLS)",
   "Vercel (SSR + cron /api/ejecutar)",
 ] as const;

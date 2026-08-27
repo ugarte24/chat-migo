@@ -11,10 +11,11 @@ import {
   Layers3,
   ListTodo,
   Lock,
-  MessageSquare,
   Mic,
+  Monitor,
   Repeat,
   Shield,
+  Smartphone,
   Sparkles,
   Timer,
   UserRound,
@@ -36,13 +37,13 @@ export const Route = createFileRoute("/")({
       {
         name: "description",
         content:
-          "Dilo transforma tus mensajes de WhatsApp en tareas, recordatorios, eventos y automatizaciones mediante inteligencia artificial.",
+          "Toca el orbe y dilo. Dilo convierte tu voz en tareas, recordatorios, eventos y automatizaciones. Los avisos llegan al celular.",
       },
       { property: "og:title", content: "Dilo | Organiza, recuerda y automatiza" },
       {
         property: "og:description",
         content:
-          "Dilo transforma tus mensajes de WhatsApp en tareas, recordatorios, eventos y automatizaciones mediante inteligencia artificial.",
+          "Toca el orbe y dilo. Dilo convierte tu voz en tareas, recordatorios, eventos y automatizaciones. Los avisos llegan al celular.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
@@ -58,12 +59,12 @@ export const Route = createFileRoute("/")({
 });
 
 const FUNCIONES: { titulo: string; texto: string; icono: LucideIcon }[] = [
+  { titulo: "Orbe", texto: "Toca la esfera en el celular. Habla o escribe; Dilo escucha y actúa.", icono: Sparkles },
   { titulo: "Tareas", texto: "Organiza lo que tienes pendiente.", icono: ListTodo },
-  { titulo: "Recordatorios", texto: "Recibe avisos en el momento adecuado.", icono: Bell },
+  { titulo: "Recordatorios", texto: "Te avisa a la hora, en el teléfono, aunque Dilo esté cerrado.", icono: Bell },
   { titulo: "Eventos", texto: "Gestiona reuniones y compromisos.", icono: CalendarDays },
   { titulo: "Memoria", texto: "Conserva información autorizada para futuras conversaciones.", icono: Brain },
-  { titulo: "Automatizaciones", texto: "Programa acciones que se ejecutarán automáticamente.", icono: Repeat },
-  { titulo: "Voz", texto: "Habla en lugar de escribir.", icono: Mic },
+  { titulo: "Automatizaciones", texto: "Programa acciones que se ejecutarán solas.", icono: Repeat },
 ];
 
 const BENEFICIOS: { texto: string; icono: LucideIcon }[] = [
@@ -94,21 +95,18 @@ const PLANES = [
   {
     nombre: "Básico",
     precio: "49",
-    cta: "Comenzar",
     destacado: false,
-    items: ["Chat por WhatsApp", "Tareas y recordatorios", "Consulta de pendientes"],
+    items: ["Orbe y voz en el celular", "Tareas y recordatorios", "Avisos en el teléfono"],
   },
   {
     nombre: "Pro",
     precio: "99",
-    cta: "Comenzar ahora",
     destacado: true,
-    items: ["Todo lo de Básico", "Eventos y notas de voz", "Memoria autorizada", "Automatizaciones"],
+    items: ["Todo lo de Básico", "Eventos", "Memoria autorizada", "Automatizaciones"],
   },
   {
     nombre: "Premium",
     precio: "179",
-    cta: "Comenzar",
     destacado: false,
     items: ["Todo lo de Pro", "Más capacidad de automatización", "Prioridad de atención"],
   },
@@ -131,22 +129,48 @@ function Landing() {
                 Tu día organizado. Tú solo tienes que decirlo.
               </h1>
               <p className="mt-6 max-w-lg text-base font-medium leading-relaxed text-[#64748B] md:text-lg">
-                Dilo convierte tus mensajes de WhatsApp en tareas, recordatorios, eventos
-                y automatizaciones mediante inteligencia artificial.
+                Toca el orbe y dilo. Dilo convierte tu voz o tu texto en tareas, recordatorios,
+                eventos y automatizaciones. Los avisos llegan al celular.
               </p>
               <div className="mt-8 flex flex-col gap-3 sm:flex-row">
                 <Button asChild size="lg" className="h-12 px-7 text-[15px]">
-                  <Link to="/iniciar-sesion">Comenzar ahora</Link>
+                  <Link to="/iniciar-sesion">Acceso de administración</Link>
                 </Button>
                 <Button asChild size="lg" variant="outline" className="h-12 px-7 text-[15px]">
                   <a href="#como-funciona">Ver cómo funciona</a>
                 </Button>
               </div>
               <p className="mt-5 text-sm text-[#64748B]">
-                Texto o voz. Una conversación. Menos cosas que recordar.
+                ¿Usas Dilo? Pide el APK a quien administra e instálalo en el teléfono.
               </p>
             </div>
             <HeroConversation />
+          </div>
+        </section>
+
+        <section className="px-5 py-16 md:px-8 md:py-20">
+          <div className="mx-auto grid max-w-6xl gap-5 md:grid-cols-2">
+            <Reveal>
+              <article className="h-full rounded-2xl border border-[#E2E8F0] bg-white p-8">
+                <MarcaIcono icono={Smartphone} />
+                <h2 className="mt-6 text-2xl font-extrabold">En el celular</h2>
+                <p className="mt-3 text-sm leading-relaxed text-[#64748B]">
+                  El orbe, la voz, las tareas y los avisos viven en la app Android. Toca la
+                  esfera, dilo, y Dilo organiza el resto. Los recordatorios llegan aunque la
+                  app esté cerrada.
+                </p>
+              </article>
+            </Reveal>
+            <Reveal delay={80}>
+              <article className="h-full rounded-2xl border border-[#E2E8F0] bg-white p-8">
+                <MarcaIcono icono={Monitor} />
+                <h2 className="mt-6 text-2xl font-extrabold">En esta web</h2>
+                <p className="mt-3 text-sm leading-relaxed text-[#64748B]">
+                  Aquí se presenta el producto y se administra: cuentas, APK y servicios. El
+                  orbe no se abre en el navegador.
+                </p>
+              </article>
+            </Reveal>
           </div>
         </section>
 
@@ -177,8 +201,8 @@ function Landing() {
                 Tú lo dices. Dilo se encarga.
               </h2>
               <p className="mt-5 max-w-2xl text-base leading-relaxed text-[#64748B] md:text-lg">
-                Escribe o envía una nota de voz utilizando un lenguaje natural. La inteligencia
-                artificial interpreta lo que necesitas y convierte tu solicitud en una acción.
+                Habla o escribe al orbe con tus palabras. La inteligencia artificial interpreta
+                lo que necesitas y lo convierte en una acción.
               </p>
             </Reveal>
             <div className="mt-16 grid gap-6 md:grid-cols-3">
@@ -226,10 +250,10 @@ function Landing() {
             </Reveal>
             <ol className="mt-16 grid gap-10 md:grid-cols-4">
               {[
-                { n: "01", t: "Habla", d: "Escribe o envía una nota de voz.", icono: MessageSquare },
-                { n: "02", t: "Entiéndelo", d: "La inteligencia artificial interpreta tu solicitud.", icono: Sparkles },
-                { n: "03", t: "Organízalo", d: "El sistema registra la información necesaria.", icono: FolderKanban },
-                { n: "04", t: "Hazlo", d: "La acción se ejecuta o queda programada.", icono: Check },
+                { n: "01", t: "Toca", d: "Abre Dilo en el celular y toca el orbe.", icono: Smartphone },
+                { n: "02", t: "Dilo", d: "Habla o escribe con tus palabras.", icono: Mic },
+                { n: "03", t: "Organiza", d: "Dilo registra tareas, recordatorios y eventos.", icono: FolderKanban },
+                { n: "04", t: "Avisa", d: "Cuando toca, el aviso llega al teléfono.", icono: Bell },
               ].map((paso, i) => (
                 <Reveal key={paso.n} delay={i * 100}>
                   <li>
@@ -306,8 +330,8 @@ function Landing() {
                 Hazlo una vez. Déjalo programado.
               </h2>
               <p className="mt-5 text-base leading-relaxed text-[#64748B] md:text-lg">
-                El sistema no solamente conversa: ejecuta. Programa una acción y recíbela cuando
-                corresponde, sin volver a pedirla.
+                Dilo no solo conversa: ejecuta. Programa una acción y recíbela en el celular
+                cuando corresponde, sin volver a pedirla.
               </p>
             </Reveal>
             <Reveal delay={80}>
@@ -368,7 +392,10 @@ function Landing() {
               <h2 className="text-3xl font-extrabold tracking-tight md:text-5xl">
                 Empieza a organizar tu día.
               </h2>
-              <p className="mt-4 text-sm text-[#64748B]">Precios mensuales en bolivianos.</p>
+              <p className="mt-4 text-sm text-[#64748B]">
+                Precios mensuales en bolivianos. Los planes se usan en la app Android. El acceso
+                web es para quien administra.
+              </p>
             </Reveal>
             <div className="mt-16 grid gap-5 lg:grid-cols-3">
               {PLANES.map((plan, i) => (
@@ -400,7 +427,7 @@ function Landing() {
                       ))}
                     </ul>
                     <Button asChild className="mt-8" variant={plan.destacado ? "default" : "outline"}>
-                      <Link to="/iniciar-sesion">{plan.cta}</Link>
+                      <Link to="/iniciar-sesion">Acceso de administración</Link>
                     </Button>
                   </article>
                 </Reveal>
@@ -445,13 +472,13 @@ function Landing() {
                   Deja de intentar recordarlo todo.
                 </h2>
                 <p className="mt-5 text-base text-white/80 md:text-lg">
-                  Dile a Dilo lo que necesitas y deja que se encargue de organizarlo.
+                  Toca el orbe, dilo, y deja que Dilo lo organice. Los avisos llegan al celular.
                 </p>
                 <Button asChild size="lg" variant="secondary" className="mt-8 h-12 px-7">
-                  <Link to="/iniciar-sesion">Comenzar ahora</Link>
+                  <Link to="/iniciar-sesion">Acceso de administración</Link>
                 </Button>
                 <p className="mt-5 text-sm text-white/70">
-                  Texto o voz. Una conversación. Menos cosas que recordar.
+                  El producto se usa en la app Android. Esta web es presentación y administración.
                 </p>
               </div>
             </div>
@@ -465,7 +492,9 @@ function Landing() {
             <p className="text-sm font-extrabold">
               Dilo
             </p>
-            <p className="mt-2 text-sm text-[#64748B]">Organiza. Recuerda. Automatiza.</p>
+            <p className="mt-2 text-sm text-[#64748B]">
+              Toca el orbe. Organiza. Recuerda. Automatiza.
+            </p>
           </div>
           <nav className="flex flex-wrap gap-x-6 gap-y-3 text-sm text-[#64748B]" aria-label="Pie de página">
             <a href="#funciones" className="hover:text-foreground">

@@ -30,7 +30,7 @@ export function HeroConversation() {
           <span className="size-2 rounded-full bg-primary/30" />
           <span className="size-2 rounded-full bg-ai/30" />
           <span className="size-2 rounded-full bg-border" />
-          <p className="text-xs font-medium text-muted-foreground">Dilo</p>
+          <p className="text-xs font-medium text-muted-foreground">Dilo · Toca el orbe</p>
         </div>
 
         <div className="min-h-[22rem] space-y-3 bg-[#F8FAFC] px-4 py-5">

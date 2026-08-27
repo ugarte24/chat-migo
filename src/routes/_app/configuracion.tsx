@@ -38,7 +38,7 @@ function ConfiguracionPage() {
         <Campo label="Correo">
           <Input value={perfil?.correo ?? ""} readOnly />
         </Campo>
-        <Campo label="Número de WhatsApp">
+        <Campo label="Teléfono (opcional)">
           <Input
             value={numero}
             onChange={(e) => setNumero(e.target.value)}
@@ -60,15 +60,14 @@ function ConfiguracionPage() {
           Guardar perfil
         </Button>
         <p className="text-xs text-muted-foreground">
-          Si más adelante conectas WhatsApp, Dilo usará este número para avisos. Hoy todo se maneja
-          dentro de la aplicación.
+          Los avisos llegan al celular con la app de Dilo. El teléfono es solo un dato de contacto.
         </p>
       </Seccion>
 
       <Seccion titulo="Notificaciones">
         <FilaSwitch
           titulo="Notificaciones"
-          texto="Recibir avisos de recordatorios y automatizaciones."
+          texto="Recibir avisos de recordatorios y automatizaciones en el celular."
           checked={configuracion.notificaciones}
           onChange={(v) => actualizarConfiguracion({ notificaciones: v })}
         />

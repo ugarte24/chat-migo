@@ -94,14 +94,14 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       {
         name: "description",
         content:
-          "Dilo transforma tus mensajes de WhatsApp en tareas, recordatorios, eventos y automatizaciones.",
+          "Toca el orbe y dilo. Dilo convierte tu voz en tareas, recordatorios, eventos y automatizaciones.",
       },
       { name: "theme-color", content: "#0ea5e9" },
       { property: "og:title", content: "Dilo" },
       {
         property: "og:description",
         content:
-          "Dilo transforma tus mensajes de WhatsApp en tareas, recordatorios, eventos y automatizaciones.",
+          "Toca el orbe y dilo. Dilo convierte tu voz en tareas, recordatorios, eventos y automatizaciones.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },

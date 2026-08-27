@@ -54,7 +54,7 @@ export function InteractiveDemo() {
 
       <div className="rounded-2xl border border-border bg-white p-5 shadow-soft md:p-6">
         <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
-          Conversación
+          Conversación en el orbe
         </p>
         <div className="mt-5 space-y-3">
           <p

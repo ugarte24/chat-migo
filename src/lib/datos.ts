@@ -117,13 +117,13 @@ export const hoyISO = () => {
 };
 
 export const INTEGRACIONES = [
-  { nombre: "WhatsApp Business Platform", descripcion: "Recepción y envío de mensajes y notas de voz.", estado: "Pendiente de conexión" },
-  { nombre: "API de inteligencia artificial", descripcion: "ChatGPT interpreta y actúa sobre tu agenda.", estado: "Conectado con OPENAI_API_KEY" },
+  { nombre: "Avisos en el celular", descripcion: "Firebase Cloud Messaging: recordatorios y automatizaciones llegan a la APK, aunque Dilo esté cerrado.", estado: "Pendiente de FCM_SERVICE_ACCOUNT_JSON" },
+  { nombre: "API de inteligencia artificial", descripcion: "Gemini o ChatGPT interpreta y actúa sobre tu agenda.", estado: "Conectado con GEMINI_API_KEY u OPENAI_API_KEY" },
   { nombre: "Voz de Dilo", descripcion: "ElevenLabs TTS con Voice ID. Whisper transcribe.", estado: "ElevenLabs + OPENAI_API_KEY" },
   { nombre: "Supabase", descripcion: "Persistencia de tareas, eventos, memoria, historial y chat en el proyecto Dilo.", estado: "Conectado" },
   { nombre: "Vercel", descripcion: "Alojamiento SSR (TanStack Start + Nitro). Variables VITE_* en el dashboard del proyecto.", estado: "Listo para desplegar" },
   { nombre: "Google Calendar", descripcion: "Sincronización de eventos del usuario.", estado: "Pendiente de conexión" },
-  { nombre: "Motor de automatización", descripcion: "Ejecución programada de acciones recurrentes.", estado: "Simulada" },
+  { nombre: "Motor de automatización", descripcion: "Ejecución programada de acciones recurrentes y avisos al celular.", estado: "Simulada" },
 ];
 
 export const DIAS_SEMANA = [

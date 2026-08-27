@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 import { PageHeader } from "@/components/panel/PageHeader";
 import { Badge } from "@/components/ui/badge";
 import { INTEGRACIONES } from "@/lib/datos";
-import { urlCronEjecutar, urlPublicaApp, urlWebhookWhatsApp } from "@/lib/entorno";
+import { urlCronEjecutar, urlPublicaApp } from "@/lib/entorno";
 import { SERVICIOS_FUTUROS } from "@/lib/servicios";
 import { useAsistente } from "@/lib/store";
 import { supabaseConfigurado } from "@/lib/supabase";
@@ -15,11 +15,10 @@ export const Route = createFileRoute("/admin/integraciones")({
 });
 
 interface EstadoServicios {
-  whatsapp: boolean;
+  fcm: boolean;
   ia: boolean;
   servicio: boolean;
   vercel: boolean;
-  webhook: string;
   cron: string;
 }
 
@@ -46,8 +45,8 @@ function IntegracionesPage() {
               : "Pendiente de variables";
       return { ...i, estado };
     }
-    if (i.nombre === "WhatsApp Business Platform") {
-      return { ...i, estado: remoto?.whatsapp ? "Conectado" : "Pendiente de conexión" };
+    if (i.nombre === "Avisos en el celular") {
+      return { ...i, estado: remoto?.fcm ? "Conectado" : "Pendiente de FCM_SERVICE_ACCOUNT_JSON" };
     }
     if (i.nombre === "API de inteligencia artificial") {
       return { ...i, estado: remoto?.ia ? "Conectada" : "Motor local" };
@@ -64,14 +63,13 @@ function IntegracionesPage() {
     return i;
   });
 
-  const webhook = remoto?.webhook || urlWebhookWhatsApp();
   const cron = remoto?.cron || urlCronEjecutar();
 
   return (
     <div>
       <PageHeader
         titulo="Integraciones"
-        descripcion="Servicios conectados. WhatsApp e IA se activan con variables de servidor (sin prefijo VITE_)."
+        descripcion="Servicios conectados. Los avisos van a la APK (FCM). La IA se activa con variables de servidor (sin prefijo VITE_)."
       />
       <div className="grid gap-4 md:grid-cols-2">
         {integraciones.map((i) => (
@@ -85,9 +83,6 @@ function IntegracionesPage() {
         ))}
       </div>
       <div className="panel-card mt-6 space-y-2 p-5 text-sm">
-        <p>
-          Webhook de WhatsApp: <code className="text-xs">{webhook}</code>
-        </p>
         <p>
           Cron de avisos: <code className="text-xs">{cron}</code>
         </p>

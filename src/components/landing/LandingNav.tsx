@@ -56,7 +56,7 @@ export function LandingNav() {
             <Link to="/iniciar-sesion">Iniciar sesión</Link>
           </Button>
           <Button asChild size="sm">
-            <Link to="/iniciar-sesion">Comenzar ahora</Link>
+            <Link to="/iniciar-sesion">Administración</Link>
           </Button>
         </div>
 
@@ -90,7 +90,7 @@ export function LandingNav() {
               </Button>
               <Button asChild>
                 <Link to="/iniciar-sesion" onClick={() => setAbierto(false)}>
-                  Comenzar ahora
+                  Administración
                 </Link>
               </Button>
             </nav>

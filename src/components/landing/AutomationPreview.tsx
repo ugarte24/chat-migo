@@ -47,7 +47,7 @@ export function AutomationPreview() {
           <>
             <p className="landing-chat-in font-medium text-foreground">Automatización ejecutada</p>
             <p className="landing-chat-in text-success" style={{ animationDelay: "0.2s" }}>
-              Recordatorio enviado
+              Aviso enviado al celular
             </p>
           </>
         )}
