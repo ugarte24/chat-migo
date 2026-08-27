@@ -57,7 +57,7 @@ function UsuariosPage() {
     <div>
       <PageHeader
         titulo="Usuarios"
-        descripcion="Solo el administrador puede crear cuentas. Quien reciba correo y contraseña podrá iniciar sesión."
+        descripcion="Solo el administrador puede crear cuentas. Esa persona inicia sesión en la APK, no en esta web."
       />
       <form onSubmit={(e) => void onSubmit(e)} className="panel-card mb-6 grid gap-4 p-6 sm:grid-cols-2">
         <div className="sm:col-span-2">

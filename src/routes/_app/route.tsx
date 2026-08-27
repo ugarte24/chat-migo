@@ -1,6 +1,8 @@
 import { Outlet, createFileRoute, Link, Navigate, useRouterState } from "@tanstack/react-router";
 import { ArrowLeft } from "lucide-react";
+import { useEffect, useState } from "react";
 import { useAuth } from "@/lib/auth";
+import { productoVisibleEnEsteCliente } from "@/lib/nativo";
 import { supabaseConfigurado } from "@/lib/supabase";
 
 export const Route = createFileRoute("/_app")({
@@ -10,18 +12,27 @@ export const Route = createFileRoute("/_app")({
 function AppLayout() {
   const { cargando, perfil } = useAuth();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
+  const [montado, setMontado] = useState(false);
 
-  if (supabaseConfigurado) {
-    if (cargando) {
-      return (
-        <div className="font-dilo flex min-h-screen items-center justify-center text-sm text-[#5f6368]">
-          Comprobando sesión…
-        </div>
-      );
-    }
-    if (!perfil) {
-      return <Navigate to="/iniciar-sesion" />;
-    }
+  useEffect(() => {
+    setMontado(true);
+  }, []);
+
+  if (!montado || (supabaseConfigurado && cargando)) {
+    return (
+      <div className="font-dilo flex min-h-screen items-center justify-center text-sm text-[#5f6368]">
+        Comprobando sesión…
+      </div>
+    );
+  }
+
+  if (supabaseConfigurado && !perfil) {
+    return <Navigate to="/iniciar-sesion" />;
+  }
+
+  if (!productoVisibleEnEsteCliente()) {
+    if (perfil?.rol === "administrador") return <Navigate to="/admin" />;
+    return <Navigate to="/usar-app" />;
   }
 
   if (pathname === "/panel" || pathname === "/chat") {

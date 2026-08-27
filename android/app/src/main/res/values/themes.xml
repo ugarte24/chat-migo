@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <style name="TemaDilo" parent="android:Theme.Material.Light.NoActionBar">
+        <item name="android:statusBarColor">@color/dilo_cian</item>
+        <item name="android:navigationBarColor">@color/dilo_fondo</item>
+        <item name="android:windowBackground">@color/dilo_cian</item>
+        <item name="android:windowLightStatusBar">false</item>
+    </style>
+</resources>

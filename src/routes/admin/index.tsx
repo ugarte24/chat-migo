@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { Link, createFileRoute } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { PageHeader, StatCard } from "@/components/panel/PageHeader";
 import { contarTabla, listarPerfiles } from "@/lib/repositorio";
@@ -41,9 +41,17 @@ function AdminDashboard() {
         <StatCard etiqueta="Automatizaciones" valor={automatizaciones} tono="success" />
       </div>
       <div className="panel-card mt-8 p-5 text-sm text-muted-foreground">
-        Este panel supervisa el sistema. La memoria de cada usuario permanece protegida y no se
-        muestra aquí. Para promover un administrador:{" "}
-        <code className="text-xs">update perfiles set rol = 'administrador' where correo = '…'</code>
+        <p>
+          El orbe vive en la{" "}
+          <Link to="/admin/aplicacion" className="text-foreground underline">
+            aplicación Android
+          </Link>
+          . Esta web es administración y la landing. La memoria de cada usuario no se muestra aquí.
+        </p>
+        <p className="mt-2">
+          Para promover un administrador:{" "}
+          <code className="text-xs">update perfiles set rol = 'administrador' where correo = '…'</code>
+        </p>
       </div>
     </div>
   );

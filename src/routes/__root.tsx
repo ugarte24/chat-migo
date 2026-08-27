@@ -22,7 +22,7 @@ function NotFoundComponent() {
         <h1 className="text-7xl font-bold text-foreground">404</h1>
         <h2 className="mt-4 text-xl font-semibold text-foreground">Página no encontrada</h2>
         <p className="mt-2 text-sm text-muted-foreground">
-          Esta ruta no existe o fue movida. Vuelve al inicio o abre el panel.
+          Esta ruta no existe o fue movida. Vuelve al inicio.
         </p>
         <div className="mt-6 flex flex-wrap justify-center gap-2">
           <Link
@@ -32,10 +32,10 @@ function NotFoundComponent() {
             Ir al inicio
           </Link>
           <Link
-            to="/panel"
+            to="/iniciar-sesion"
             className="inline-flex items-center justify-center rounded-md border border-input bg-background px-4 py-2 text-sm font-medium text-foreground transition-colors hover:bg-accent"
           >
-            Abrir panel
+            Iniciar sesión
           </Link>
         </div>
       </div>

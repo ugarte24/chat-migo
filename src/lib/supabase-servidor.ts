@@ -27,8 +27,7 @@ export function claveAnonServidor() {
   return env("VITE_SUPABASE_ANON_KEY") || env("SUPABASE_ANON_KEY");
 }
 
-/** Devuelve el id del usuario si el Bearer JWT corresponde a un administrador. */
-export async function exigirAdministrador(request: Request): Promise<string | null> {
+async function usuarioDesdeBearer(request: Request): Promise<string | null> {
   const auth = request.headers.get("Authorization") ?? "";
   const token = auth.startsWith("Bearer ") ? auth.slice(7).trim() : "";
   if (!token) return null;
@@ -40,9 +39,21 @@ export async function exigirAdministrador(request: Request): Promise<string | nu
   });
   const { data, error } = await cliente.auth.getUser(token);
   if (error || !data.user) return null;
+  return data.user.id;
+}
+
+/** Devuelve el id del usuario si el Bearer JWT es válido. */
+export async function exigirUsuario(request: Request): Promise<string | null> {
+  return usuarioDesdeBearer(request);
+}
+
+/** Devuelve el id del usuario si el Bearer JWT corresponde a un administrador. */
+export async function exigirAdministrador(request: Request): Promise<string | null> {
+  const id = await usuarioDesdeBearer(request);
+  if (!id) return null;
   const db = supabaseServicio();
   if (!db) return null;
-  const { data: perfil } = await db.from("perfiles").select("rol").eq("id", data.user.id).maybeSingle();
+  const { data: perfil } = await db.from("perfiles").select("rol").eq("id", id).maybeSingle();
   if (perfil?.rol !== "administrador") return null;
-  return data.user.id;
+  return id;
 }

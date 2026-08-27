@@ -8,6 +8,7 @@ import {
   type ReactNode,
 } from "react";
 import type { Session } from "@supabase/supabase-js";
+import { esCascaraAndroid, registrarDispositivo } from "./nativo";
 import { cargarPerfil, asegurarPerfil, type PerfilSesion } from "./repositorio";
 import { supabase } from "./supabase";
 
@@ -72,6 +73,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
   }, []);
 
+  useEffect(() => {
+    if (!sesion) return;
+    void registrarDispositivo();
+    const alNativo = () => {
+      void registrarDispositivo();
+    };
+    window.addEventListener("dilo-nativo", alNativo);
+    return () => window.removeEventListener("dilo-nativo", alNativo);
+  }, [sesion]);
+
   const iniciarSesion = useCallback(async (correo: string, clave: string) => {
     if (!supabase) return "Supabase no está configurado.";
     const { data, error } = await supabase.auth.signInWithPassword({
@@ -121,6 +132,9 @@ export function useAuth() {
   return ctx;
 }
 
-export function destinoTrasLogin(_rol: PerfilSesion["rol"] | undefined) {
-  return "/panel";
+export function destinoTrasLogin(rol: PerfilSesion["rol"] | undefined): "/panel" | "/admin" | "/usar-app" {
+  if (esCascaraAndroid()) return "/panel";
+  if (rol === "administrador") return "/admin";
+  if (import.meta.env.DEV) return "/panel";
+  return "/usar-app";
 }

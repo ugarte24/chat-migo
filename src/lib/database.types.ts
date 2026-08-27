@@ -91,6 +91,41 @@ export type Database = {
           },
         ];
       };
+      dispositivos: {
+        Row: {
+          actualizado_at: string;
+          created_at: string;
+          id: string;
+          plataforma: string;
+          token: string;
+          usuario_id: string;
+        };
+        Insert: {
+          actualizado_at?: string;
+          created_at?: string;
+          id?: string;
+          plataforma?: string;
+          token: string;
+          usuario_id: string;
+        };
+        Update: {
+          actualizado_at?: string;
+          created_at?: string;
+          id?: string;
+          plataforma?: string;
+          token?: string;
+          usuario_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "dispositivos_usuario_id_fkey",
+            columns: ["usuario_id"],
+            isOneToOne: false,
+            referencedRelation: "perfiles",
+            referencedColumns: ["id"],
+          },
+        ];
+      };
       eventos: {
         Row: {
           created_at: string;

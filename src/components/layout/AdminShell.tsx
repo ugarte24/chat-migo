@@ -9,6 +9,7 @@ import {
   Plug,
   Repeat,
   Settings,
+  Smartphone,
   Users,
 } from "lucide-react";
 import { DiloIcono } from "@/components/DiloIcono";
@@ -20,6 +21,7 @@ import { cn } from "@/lib/utils";
 const NAV = [
   { to: "/admin", etiqueta: "Dashboard", icono: LayoutDashboard, exact: true },
   { to: "/admin/usuarios", etiqueta: "Usuarios", icono: Users, exact: true },
+  { to: "/admin/aplicacion", etiqueta: "Aplicación Android", icono: Smartphone, exact: true },
   { to: "/admin/actividad", etiqueta: "Actividad del sistema", icono: Activity, exact: true },
   { to: "/admin/automatizaciones", etiqueta: "Automatizaciones", icono: Repeat, exact: true },
   { to: "/admin/integraciones", etiqueta: "Integraciones", icono: Plug, exact: true },

@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Dilo</string>
+    <!-- URL de producción en Vercel, sin barra final. Cámbiala a la tuya. -->
+    <string name="dilo_url">https://chat-migo.vercel.app</string>
+    <string name="dilo_ruta">/panel</string>
+</resources>

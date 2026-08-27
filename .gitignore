@@ -42,3 +42,14 @@ supabase/.branches
 *.njsproj
 *.sln
 *.sw?
+
+# Android (cáscara). El código en android/ sí se versiona.
+android/.gradle
+android/build
+android/app/build
+android/local.properties
+android/app/google-services.json
+android/app/dilo-debug.keystore
+android/*.iml
+android/.idea
+android/captures

@@ -43,7 +43,7 @@ function IniciarSesionPage() {
           <div>
             <h1 className="font-display text-xl font-semibold">Iniciar sesión</h1>
             <p className="mt-1 text-sm text-muted-foreground">
-              Usa la cuenta que te asignó el administrador.
+              Administración en la web. Si te dieron la app, abre Dilo en el teléfono.
             </p>
           </div>
           <div className="space-y-1.5">

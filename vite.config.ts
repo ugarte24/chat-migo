@@ -17,6 +17,7 @@ const SECRETOS = [
   "WHATSAPP_TOKEN",
   "WHATSAPP_PHONE_NUMBER_ID",
   "WHATSAPP_VERIFY_TOKEN",
+  "FCM_SERVICE_ACCOUNT_JSON",
 ] as const;
 
 for (const modo of [process.env.NODE_ENV || "development", "development"]) {

@@ -14,6 +14,7 @@ import { Route as AppRouteRouteImport } from './routes/_app/route'
 import { Route as AdminRouteRouteImport } from './routes/admin/route'
 import { Route as IniciarSesionRouteImport } from './routes/iniciar-sesion'
 import { Route as RegistroRouteImport } from './routes/registro'
+import { Route as UsarAppRouteImport } from './routes/usar-app'
 import { Route as AppAutomatizacionesRouteImport } from './routes/_app/automatizaciones'
 import { Route as AppChatRouteImport } from './routes/_app/chat'
 import { Route as AppConfiguracionRouteImport } from './routes/_app/configuracion'
@@ -25,11 +26,14 @@ import { Route as AppRecordatoriosRouteImport } from './routes/_app/recordatorio
 import { Route as AppTareasRouteImport } from './routes/_app/tareas'
 import { Route as AdminIndexRouteImport } from './routes/admin/index'
 import { Route as AdminActividadRouteImport } from './routes/admin/actividad'
+import { Route as AdminAplicacionRouteImport } from './routes/admin/aplicacion'
 import { Route as AdminAutomatizacionesRouteImport } from './routes/admin/automatizaciones'
 import { Route as AdminConfiguracionRouteImport } from './routes/admin/configuracion'
 import { Route as AdminIntegracionesRouteImport } from './routes/admin/integraciones'
 import { Route as AdminUsuariosRouteImport } from './routes/admin/usuarios'
+import { Route as ApiApkRouteImport } from './routes/api/apk'
 import { Route as ApiDiloRouteImport } from './routes/api/dilo'
+import { Route as ApiDispositivoRouteImport } from './routes/api/dispositivo'
 import { Route as ApiEjecutarRouteImport } from './routes/api/ejecutar'
 import { Route as ApiEstadoRouteImport } from './routes/api/estado'
 import { Route as ApiHablarRouteImport } from './routes/api/hablar'
@@ -60,6 +64,11 @@ const IniciarSesionRoute = IniciarSesionRouteImport.update({
 const RegistroRoute = RegistroRouteImport.update({
   id: '/registro',
   path: '/registro',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const UsarAppRoute = UsarAppRouteImport.update({
+  id: '/usar-app',
+  path: '/usar-app',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AppAutomatizacionesRoute = AppAutomatizacionesRouteImport.update({
@@ -117,6 +126,11 @@ const AdminActividadRoute = AdminActividadRouteImport.update({
   path: '/actividad',
   getParentRoute: () => AdminRouteRoute,
 } as any)
+const AdminAplicacionRoute = AdminAplicacionRouteImport.update({
+  id: '/aplicacion',
+  path: '/aplicacion',
+  getParentRoute: () => AdminRouteRoute,
+} as any)
 const AdminAutomatizacionesRoute = AdminAutomatizacionesRouteImport.update({
   id: '/automatizaciones',
   path: '/automatizaciones',
@@ -137,9 +151,19 @@ const AdminUsuariosRoute = AdminUsuariosRouteImport.update({
   path: '/usuarios',
   getParentRoute: () => AdminRouteRoute,
 } as any)
+const ApiApkRoute = ApiApkRouteImport.update({
+  id: '/api/apk',
+  path: '/api/apk',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiDiloRoute = ApiDiloRouteImport.update({
   id: '/api/dilo',
   path: '/api/dilo',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiDispositivoRoute = ApiDispositivoRouteImport.update({
+  id: '/api/dispositivo',
+  path: '/api/dispositivo',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiEjecutarRoute = ApiEjecutarRouteImport.update({
@@ -183,6 +207,7 @@ export interface FileRoutesByFullPath {
   '/admin': typeof AdminRouteRouteWithChildren
   '/iniciar-sesion': typeof IniciarSesionRoute
   '/registro': typeof RegistroRoute
+  '/usar-app': typeof UsarAppRoute
   '/automatizaciones': typeof AppAutomatizacionesRoute
   '/chat': typeof AppChatRoute
   '/configuracion': typeof AppConfiguracionRoute
@@ -193,11 +218,14 @@ export interface FileRoutesByFullPath {
   '/recordatorios': typeof AppRecordatoriosRoute
   '/tareas': typeof AppTareasRoute
   '/admin/actividad': typeof AdminActividadRoute
+  '/admin/aplicacion': typeof AdminAplicacionRoute
   '/admin/automatizaciones': typeof AdminAutomatizacionesRoute
   '/admin/configuracion': typeof AdminConfiguracionRoute
   '/admin/integraciones': typeof AdminIntegracionesRoute
   '/admin/usuarios': typeof AdminUsuariosRoute
+  '/api/apk': typeof ApiApkRoute
   '/api/dilo': typeof ApiDiloRoute
+  '/api/dispositivo': typeof ApiDispositivoRoute
   '/api/ejecutar': typeof ApiEjecutarRoute
   '/api/estado': typeof ApiEstadoRoute
   '/api/hablar': typeof ApiHablarRoute
@@ -211,6 +239,7 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/iniciar-sesion': typeof IniciarSesionRoute
   '/registro': typeof RegistroRoute
+  '/usar-app': typeof UsarAppRoute
   '/automatizaciones': typeof AppAutomatizacionesRoute
   '/chat': typeof AppChatRoute
   '/configuracion': typeof AppConfiguracionRoute
@@ -221,11 +250,14 @@ export interface FileRoutesByTo {
   '/recordatorios': typeof AppRecordatoriosRoute
   '/tareas': typeof AppTareasRoute
   '/admin/actividad': typeof AdminActividadRoute
+  '/admin/aplicacion': typeof AdminAplicacionRoute
   '/admin/automatizaciones': typeof AdminAutomatizacionesRoute
   '/admin/configuracion': typeof AdminConfiguracionRoute
   '/admin/integraciones': typeof AdminIntegracionesRoute
   '/admin/usuarios': typeof AdminUsuariosRoute
+  '/api/apk': typeof ApiApkRoute
   '/api/dilo': typeof ApiDiloRoute
+  '/api/dispositivo': typeof ApiDispositivoRoute
   '/api/ejecutar': typeof ApiEjecutarRoute
   '/api/estado': typeof ApiEstadoRoute
   '/api/hablar': typeof ApiHablarRoute
@@ -242,6 +274,7 @@ export interface FileRoutesById {
   '/admin': typeof AdminRouteRouteWithChildren
   '/iniciar-sesion': typeof IniciarSesionRoute
   '/registro': typeof RegistroRoute
+  '/usar-app': typeof UsarAppRoute
   '/_app/automatizaciones': typeof AppAutomatizacionesRoute
   '/_app/chat': typeof AppChatRoute
   '/_app/configuracion': typeof AppConfiguracionRoute
@@ -252,11 +285,14 @@ export interface FileRoutesById {
   '/_app/recordatorios': typeof AppRecordatoriosRoute
   '/_app/tareas': typeof AppTareasRoute
   '/admin/actividad': typeof AdminActividadRoute
+  '/admin/aplicacion': typeof AdminAplicacionRoute
   '/admin/automatizaciones': typeof AdminAutomatizacionesRoute
   '/admin/configuracion': typeof AdminConfiguracionRoute
   '/admin/integraciones': typeof AdminIntegracionesRoute
   '/admin/usuarios': typeof AdminUsuariosRoute
+  '/api/apk': typeof ApiApkRoute
   '/api/dilo': typeof ApiDiloRoute
+  '/api/dispositivo': typeof ApiDispositivoRoute
   '/api/ejecutar': typeof ApiEjecutarRoute
   '/api/estado': typeof ApiEstadoRoute
   '/api/hablar': typeof ApiHablarRoute
@@ -273,6 +309,7 @@ export interface FileRouteTypes {
     | '/admin'
     | '/iniciar-sesion'
     | '/registro'
+    | '/usar-app'
     | '/automatizaciones'
     | '/chat'
     | '/configuracion'
@@ -283,11 +320,14 @@ export interface FileRouteTypes {
     | '/recordatorios'
     | '/tareas'
     | '/admin/actividad'
+    | '/admin/aplicacion'
     | '/admin/automatizaciones'
     | '/admin/configuracion'
     | '/admin/integraciones'
     | '/admin/usuarios'
+    | '/api/apk'
     | '/api/dilo'
+    | '/api/dispositivo'
     | '/api/ejecutar'
     | '/api/estado'
     | '/api/hablar'
@@ -301,6 +341,7 @@ export interface FileRouteTypes {
     | '/'
     | '/iniciar-sesion'
     | '/registro'
+    | '/usar-app'
     | '/automatizaciones'
     | '/chat'
     | '/configuracion'
@@ -311,11 +352,14 @@ export interface FileRouteTypes {
     | '/recordatorios'
     | '/tareas'
     | '/admin/actividad'
+    | '/admin/aplicacion'
     | '/admin/automatizaciones'
     | '/admin/configuracion'
     | '/admin/integraciones'
     | '/admin/usuarios'
+    | '/api/apk'
     | '/api/dilo'
+    | '/api/dispositivo'
     | '/api/ejecutar'
     | '/api/estado'
     | '/api/hablar'
@@ -331,6 +375,7 @@ export interface FileRouteTypes {
     | '/admin'
     | '/iniciar-sesion'
     | '/registro'
+    | '/usar-app'
     | '/_app/automatizaciones'
     | '/_app/chat'
     | '/_app/configuracion'
@@ -341,11 +386,14 @@ export interface FileRouteTypes {
     | '/_app/recordatorios'
     | '/_app/tareas'
     | '/admin/actividad'
+    | '/admin/aplicacion'
     | '/admin/automatizaciones'
     | '/admin/configuracion'
     | '/admin/integraciones'
     | '/admin/usuarios'
+    | '/api/apk'
     | '/api/dilo'
+    | '/api/dispositivo'
     | '/api/ejecutar'
     | '/api/estado'
     | '/api/hablar'
@@ -362,7 +410,10 @@ export interface RootRouteChildren {
   AdminRouteRoute: typeof AdminRouteRouteWithChildren
   IniciarSesionRoute: typeof IniciarSesionRoute
   RegistroRoute: typeof RegistroRoute
+  UsarAppRoute: typeof UsarAppRoute
+  ApiApkRoute: typeof ApiApkRoute
   ApiDiloRoute: typeof ApiDiloRoute
+  ApiDispositivoRoute: typeof ApiDispositivoRoute
   ApiEjecutarRoute: typeof ApiEjecutarRoute
   ApiEstadoRoute: typeof ApiEstadoRoute
   ApiHablarRoute: typeof ApiHablarRoute
@@ -407,6 +458,13 @@ declare module '@tanstack/react-router' {
       path: '/registro'
       fullPath: '/registro'
       preLoaderRoute: typeof RegistroRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/usar-app': {
+      id: '/usar-app'
+      path: '/usar-app'
+      fullPath: '/usar-app'
+      preLoaderRoute: typeof UsarAppRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/_app/automatizaciones': {
@@ -486,6 +544,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminActividadRouteImport
       parentRoute: typeof AdminRouteRoute
     }
+    '/admin/aplicacion': {
+      id: '/admin/aplicacion'
+      path: '/aplicacion'
+      fullPath: '/admin/aplicacion'
+      preLoaderRoute: typeof AdminAplicacionRouteImport
+      parentRoute: typeof AdminRouteRoute
+    }
     '/admin/automatizaciones': {
       id: '/admin/automatizaciones'
       path: '/automatizaciones'
@@ -514,11 +579,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminUsuariosRouteImport
       parentRoute: typeof AdminRouteRoute
     }
+    '/api/apk': {
+      id: '/api/apk'
+      path: '/api/apk'
+      fullPath: '/api/apk'
+      preLoaderRoute: typeof ApiApkRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/dilo': {
       id: '/api/dilo'
       path: '/api/dilo'
       fullPath: '/api/dilo'
       preLoaderRoute: typeof ApiDiloRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/dispositivo': {
+      id: '/api/dispositivo'
+      path: '/api/dispositivo'
+      fullPath: '/api/dispositivo'
+      preLoaderRoute: typeof ApiDispositivoRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/ejecutar': {
@@ -603,6 +682,7 @@ const AppRouteRouteWithChildren = AppRouteRoute._addFileChildren(
 
 interface AdminRouteRouteChildren {
   AdminActividadRoute: typeof AdminActividadRoute
+  AdminAplicacionRoute: typeof AdminAplicacionRoute
   AdminAutomatizacionesRoute: typeof AdminAutomatizacionesRoute
   AdminConfiguracionRoute: typeof AdminConfiguracionRoute
   AdminIntegracionesRoute: typeof AdminIntegracionesRoute
@@ -612,6 +692,7 @@ interface AdminRouteRouteChildren {
 
 const AdminRouteRouteChildren: AdminRouteRouteChildren = {
   AdminActividadRoute: AdminActividadRoute,
+  AdminAplicacionRoute: AdminAplicacionRoute,
   AdminAutomatizacionesRoute: AdminAutomatizacionesRoute,
   AdminConfiguracionRoute: AdminConfiguracionRoute,
   AdminIntegracionesRoute: AdminIntegracionesRoute,
@@ -629,7 +710,10 @@ const rootRouteChildren: RootRouteChildren = {
   AdminRouteRoute: AdminRouteRouteWithChildren,
   IniciarSesionRoute: IniciarSesionRoute,
   RegistroRoute: RegistroRoute,
+  UsarAppRoute: UsarAppRoute,
+  ApiApkRoute: ApiApkRoute,
   ApiDiloRoute: ApiDiloRoute,
+  ApiDispositivoRoute: ApiDispositivoRoute,
   ApiEjecutarRoute: ApiEjecutarRoute,
   ApiEstadoRoute: ApiEstadoRoute,
   ApiHablarRoute: ApiHablarRoute,
