@@ -49,8 +49,11 @@ function AdminDashboard() {
           . Esta web es administración y la landing. La memoria de cada usuario no se muestra aquí.
         </p>
         <p className="mt-2">
-          Para promover un administrador:{" "}
-          <code className="text-xs">update perfiles set rol = 'administrador' where correo = '…'</code>
+          Los roles se asignan en{" "}
+          <Link to="/admin/usuarios" className="text-foreground underline">
+            Usuarios
+          </Link>
+          : usuario (app en el celular) o administrador (esta web).
         </p>
       </div>
     </div>

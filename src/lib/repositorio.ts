@@ -386,6 +386,23 @@ export async function actualizarDatosPerfil(
 
 export type RolPerfil = "usuario" | "administrador";
 
+export const ROLES_PERFIL: { valor: RolPerfil; etiqueta: string; texto: string }[] = [
+  {
+    valor: "usuario",
+    etiqueta: "Usuario",
+    texto: "Usa Dilo en el celular: orbe, tareas, recordatorios y avisos.",
+  },
+  {
+    valor: "administrador",
+    etiqueta: "Administrador",
+    texto: "Gestiona cuentas, la APK y la plataforma en esta web.",
+  },
+];
+
+export function etiquetaRol(rol: RolPerfil) {
+  return ROLES_PERFIL.find((r) => r.valor === rol)?.etiqueta ?? rol;
+}
+
 export interface PerfilSesion {
   id: string;
   nombre: string;
@@ -456,21 +473,42 @@ export async function crearUsuarioPorAdmin(
   nombre: string,
   correo: string,
   clave: string,
+  rol: RolPerfil = "usuario",
+): Promise<string | null> {
+  return pedirUsuarioAdmin("POST", { nombre: nombre.trim(), correo: correo.trim(), clave, rol });
+}
+
+export async function actualizarUsuarioPorAdmin(
+  id: string,
+  cambios: { nombre: string; correo: string; rol: RolPerfil; clave?: string },
+): Promise<string | null> {
+  return pedirUsuarioAdmin("PATCH", {
+    id,
+    nombre: cambios.nombre.trim(),
+    correo: cambios.correo.trim(),
+    rol: cambios.rol,
+    clave: cambios.clave,
+  });
+}
+
+async function pedirUsuarioAdmin(
+  metodo: "POST" | "PATCH",
+  cuerpo: Record<string, unknown>,
 ): Promise<string | null> {
   if (!supabase) return "Supabase no está configurado.";
   const { data } = await supabase.auth.getSession();
   const token = data.session?.access_token;
   if (!token) return "Debes iniciar sesión.";
   const res = await fetch("/api/usuarios", {
-    method: "POST",
+    method: metodo,
     headers: {
       Authorization: `Bearer ${token}`,
       "Content-Type": "application/json",
     },
-    body: JSON.stringify({ nombre: nombre.trim(), correo: correo.trim(), clave }),
+    body: JSON.stringify(cuerpo),
   });
-  const cuerpo = (await res.json().catch(() => ({}))) as { error?: string };
-  if (!res.ok) return cuerpo.error || "No se pudo crear la cuenta.";
+  const respuesta = (await res.json().catch(() => ({}))) as { error?: string };
+  if (!res.ok) return respuesta.error || "No se pudo guardar la cuenta.";
   return null;
 }
 
