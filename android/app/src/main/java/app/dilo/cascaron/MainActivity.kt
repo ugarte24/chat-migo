@@ -12,7 +12,6 @@ import android.media.AudioManager
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
-import android.view.Gravity
 import android.view.View
 import android.webkit.CookieManager
 import android.webkit.JavascriptInterface
@@ -22,7 +21,7 @@ import android.webkit.WebResourceRequest
 import android.webkit.WebSettings
 import android.webkit.WebView
 import android.webkit.WebViewClient
-import android.widget.FrameLayout
+import android.widget.LinearLayout
 import androidx.activity.ComponentActivity
 import androidx.activity.OnBackPressedCallback
 import androidx.activity.result.contract.ActivityResultContracts
@@ -62,61 +61,45 @@ class MainActivity : ComponentActivity() {
         pedirTokenFcm()
 
         web = WebView(this)
+        web.setBackgroundColor(colorFondo)
         configurarWeb(web)
 
         val tope = View(this).apply { setBackgroundColor(colorBarra) }
         val pie = View(this).apply { setBackgroundColor(colorFondo) }
-        val raiz = FrameLayout(this).apply {
+        val raiz = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
             setBackgroundColor(colorFondo)
             addView(
-                web,
-                FrameLayout.LayoutParams(
-                    FrameLayout.LayoutParams.MATCH_PARENT,
-                    FrameLayout.LayoutParams.MATCH_PARENT,
-                ),
+                tope,
+                LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, 0),
             )
             addView(
-                tope,
-                FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, 0).apply {
-                    gravity = Gravity.TOP
-                },
+                web,
+                LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, 0, 1f),
             )
             addView(
                 pie,
-                FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, 0).apply {
-                    gravity = Gravity.BOTTOM
-                },
+                LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, 0),
             )
         }
-        ViewCompat.setOnApplyWindowInsetsListener(raiz) { _, insets ->
+        ViewCompat.setOnApplyWindowInsetsListener(raiz) { vista, insets ->
             val barras = insets.getInsets(
                 WindowInsetsCompat.Type.systemBars() or WindowInsetsCompat.Type.displayCutout(),
             )
             val teclado = insets.getInsets(WindowInsetsCompat.Type.ime())
             val abajo = maxOf(barras.bottom, teclado.bottom)
-            web.updatePadding(
-                left = barras.left,
-                top = barras.top,
-                right = barras.right,
-                bottom = abajo,
-            )
-            tope.layoutParams = FrameLayout.LayoutParams(
-                FrameLayout.LayoutParams.MATCH_PARENT,
+            vista.updatePadding(left = barras.left, right = barras.right)
+            tope.layoutParams = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
                 barras.top,
-            ).apply { gravity = Gravity.TOP }
-            pie.layoutParams = FrameLayout.LayoutParams(
-                FrameLayout.LayoutParams.MATCH_PARENT,
+            )
+            pie.layoutParams = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
                 abajo,
-            ).apply { gravity = Gravity.BOTTOM }
+            )
             WindowInsetsCompat.CONSUMED
         }
-        setContentView(
-            raiz,
-            FrameLayout.LayoutParams(
-                FrameLayout.LayoutParams.MATCH_PARENT,
-                FrameLayout.LayoutParams.MATCH_PARENT,
-            ),
-        )
+        setContentView(raiz)
 
         onBackPressedDispatcher.addCallback(
             this,
