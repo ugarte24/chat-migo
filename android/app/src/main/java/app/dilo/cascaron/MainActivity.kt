@@ -6,7 +6,6 @@ import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.media.AudioAttributes
-import android.media.AudioDeviceInfo
 import android.media.AudioFocusRequest
 import android.media.AudioManager
 import android.net.Uri
@@ -33,6 +32,8 @@ import androidx.core.view.updatePadding
 import com.google.firebase.FirebaseApp
 import com.google.firebase.messaging.FirebaseMessaging
 import org.json.JSONObject
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.TimeUnit
 
 class MainActivity : ComponentActivity() {
     private lateinit var web: WebView
@@ -256,8 +257,9 @@ class MainActivity : ComponentActivity() {
     }
 
     /**
-     * getUserMedia pone MODE_IN_COMMUNICATION y Android manda la salida al auricular.
-     * Sin esto la voz de Dilo no se oye (o se oye pegando el teléfono a la oreja).
+     * El micrófono deja Android en MODE_IN_COMMUNICATION (auricular).
+     * La voz de Dilo va por HTML audio / STREAM_MUSIC: hay que volver a MODE_NORMAL
+     * o no se oye por el parlante.
      */
     private fun activarParlante() {
         val am = getSystemService(Context.AUDIO_SERVICE) as AudioManager
@@ -278,15 +280,12 @@ class MainActivity : ComponentActivity() {
                 @Suppress("DEPRECATION")
                 am.requestAudioFocus(null, AudioManager.STREAM_MUSIC, AudioManager.AUDIOFOCUS_GAIN)
             }
-            am.mode = AudioManager.MODE_IN_COMMUNICATION
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                am.clearCommunicationDevice()
+            }
             @Suppress("DEPRECATION")
             am.isSpeakerphoneOn = true
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                val parlante = am.availableCommunicationDevices.firstOrNull {
-                    it.type == AudioDeviceInfo.TYPE_BUILTIN_SPEAKER
-                }
-                if (parlante != null) am.setCommunicationDevice(parlante)
-            }
+            am.mode = AudioManager.MODE_NORMAL
         } catch (_: Exception) {
             /* el WebView igual puede reproducir por el altavoz del sistema */
         }
@@ -307,7 +306,19 @@ class MainActivity : ComponentActivity() {
 
         @JavascriptInterface
         fun usarParlante() {
-            runOnUiThread { activarParlante() }
+            val listo = CountDownLatch(1)
+            runOnUiThread {
+                try {
+                    activarParlante()
+                } finally {
+                    listo.countDown()
+                }
+            }
+            try {
+                listo.await(800, TimeUnit.MILLISECONDS)
+            } catch (_: InterruptedException) {
+                Thread.currentThread().interrupt()
+            }
         }
 
         @JavascriptInterface

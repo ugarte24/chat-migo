@@ -160,11 +160,11 @@ export async function prefetchHablar(texto: string, vozId?: string) {
   }
 }
 
-async function reproducirBuffer(buf: ArrayBuffer) {
+async function reproducirBuffer(buf: ArrayBuffer, gen: number) {
   usarParlanteNativo();
   await pararSilencio();
-  if (await reproducirEnElemento(buf)) return true;
-  return reproducirEnContexto(buf);
+  if (await reproducirEnElemento(buf, gen)) return true;
+  return reproducirEnContexto(buf, gen);
 }
 
 async function pararSilencio() {
@@ -180,26 +180,32 @@ async function pararSilencio() {
   el.volume = 1;
 }
 
-async function reproducirEnElemento(buf: ArrayBuffer) {
+async function reproducirEnElemento(buf: ArrayBuffer, gen: number) {
   const url = URL.createObjectURL(new Blob([buf], { type: "audio/mpeg" }));
-  const el = new Audio();
+  const nativo = esCascaraAndroid();
+  const el = nativo ? prepararAltavoz() : new Audio();
+  if (!el) {
+    URL.revokeObjectURL(url);
+    return false;
+  }
   el.setAttribute("playsinline", "true");
   el.setAttribute("webkit-playsinline", "true");
   el.preload = "auto";
   el.loop = false;
   el.muted = false;
   el.volume = 1;
-  const conSalida = el as HTMLMediaElement & { setSinkId?: (id: string) => Promise<void> };
-  try {
-    await conSalida.setSinkId?.("default");
-  } catch {
-    /* el navegador no deja elegir salida */
+  if (!nativo) {
+    const conSalida = el as HTMLMediaElement & { setSinkId?: (id: string) => Promise<void> };
+    try {
+      await conSalida.setSinkId?.("default");
+    } catch {
+      /* el navegador no deja elegir salida */
+    }
   }
   el.src = url;
   audioActual = el;
   let pararFake: (() => void) | null = null;
-  // En la APK, createMediaElementSource se traga el audio y no llega al parlante.
-  const ctx = esCascaraAndroid() ? null : await contextoListo();
+  const ctx = nativo ? null : await contextoListo();
   if (ctx) {
     try {
       const fuente = ctx.createMediaElementSource(el);
@@ -218,33 +224,32 @@ async function reproducirEnElemento(buf: ArrayBuffer) {
     await el.play();
     await new Promise<void>((resolve) => {
       let listoYa = false;
-      let arranco = false;
       const listo = () => {
         if (listoYa) return;
         listoYa = true;
+        window.clearInterval(iv);
         resolve();
       };
+      const iv = window.setInterval(() => {
+        if (gen !== generacionHabla) listo();
+      }, 80);
       el.onended = listo;
       el.onerror = listo;
-      el.addEventListener("playing", () => {
-        arranco = true;
-      });
-      el.addEventListener("pause", () => {
-        if (arranco) listo();
-      });
     });
-    return true;
+    return gen === generacionHabla && !el.error;
   } catch {
     return false;
   } finally {
     pararFake?.();
     pararMedidor();
-    URL.revokeObjectURL(url);
+    el.onended = null;
+    el.onerror = null;
     if (audioActual === el) audioActual = null;
+    URL.revokeObjectURL(url);
   }
 }
 
-async function reproducirEnContexto(buf: ArrayBuffer) {
+async function reproducirEnContexto(buf: ArrayBuffer, gen: number) {
   const ctx = await contextoListo();
   if (!ctx) return false;
   try {
@@ -267,11 +272,21 @@ async function reproducirEnContexto(buf: ArrayBuffer) {
     gananciaActual = ganancia;
     arrancarMedidor(analizador, 0.006);
     await new Promise<void>((resolve) => {
-      fuente.onended = () => resolve();
+      let listoYa = false;
+      const listo = () => {
+        if (listoYa) return;
+        listoYa = true;
+        window.clearInterval(iv);
+        resolve();
+      };
+      const iv = window.setInterval(() => {
+        if (gen !== generacionHabla) listo();
+      }, 80);
+      fuente.onended = listo;
       try {
         fuente.start();
       } catch {
-        resolve();
+        listo();
       }
     });
     pararMedidor();
@@ -306,7 +321,7 @@ async function mantenerAltavozVivo() {
 export async function desbloquearAudio() {
   if (typeof Audio === "undefined") return;
   usarParlanteNativo();
-  await contextoListo();
+  if (!esCascaraAndroid()) await contextoListo();
   const el = prepararAltavoz();
   try {
     if (el) {
@@ -627,6 +642,7 @@ function iniciarSoloReconocimiento(
         }
         window.setTimeout(() => {
           resolve({ blob: new Blob(), dicho: acumulado.texto() });
+          usarParlanteNativo();
         }, 180);
       }),
   };
@@ -748,11 +764,23 @@ async function iniciarGrabacionArchivo(alCortar?: () => void, continuo = false):
           /* ya suelta */
         }
         fuenteMic = null;
+        const soltarMic = () => {
+          stream.getTracks().forEach((t) => t.stop());
+          if (audioCtx && audioCtx === ctxCaptura) {
+            try {
+              void audioCtx.close();
+            } catch {
+              /* ya cerrado */
+            }
+            ctxCaptura = null;
+          }
+          usarParlanteNativo();
+        };
         const listo = (blob: Blob) => {
           resolve({ blob, dicho: vivo.texto() });
         };
         const tope = window.setTimeout(() => {
-          stream.getTracks().forEach((t) => t.stop());
+          soltarMic();
           if (trozos.length === 0 && !vivo.texto()) {
             reject(new Error("No se grabó audio."));
             return;
@@ -761,7 +789,7 @@ async function iniciarGrabacionArchivo(alCortar?: () => void, continuo = false):
         }, 2_500);
         rec.onstop = () => {
           window.clearTimeout(tope);
-          stream.getTracks().forEach((t) => t.stop());
+          soltarMic();
           if (trozos.length === 0 && !vivo.texto()) {
             reject(new Error("No se grabó audio."));
             return;
@@ -770,7 +798,7 @@ async function iniciarGrabacionArchivo(alCortar?: () => void, continuo = false):
         };
         if (rec.state === "inactive") {
           window.clearTimeout(tope);
-          stream.getTracks().forEach((t) => t.stop());
+          soltarMic();
           if (trozos.length === 0 && !vivo.texto()) {
             reject(new Error("La grabación ya había terminado."));
             return;
@@ -816,7 +844,7 @@ async function emitirHabla(texto: string, vozId: string | undefined, gen: number
   }
   fuenteActual = null;
   usarParlanteNativo();
-  await contextoListo();
+  if (!esCascaraAndroid()) await contextoListo();
   if (gen !== generacionHabla) return;
 
   const clave = claveHablar(limpio, vozId);
@@ -826,7 +854,7 @@ async function emitirHabla(texto: string, vozId: string | undefined, gen: number
     if (buf) cacheHablar.set(clave, buf);
   }
   if (gen !== generacionHabla) return;
-  if (buf && (await reproducirBuffer(buf))) {
+  if (buf && (await reproducirBuffer(buf, gen))) {
     await mantenerAltavozVivo();
     return;
   }
