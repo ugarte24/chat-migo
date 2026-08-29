@@ -12,6 +12,8 @@ import android.media.AudioManager
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
+import android.view.Gravity
+import android.view.View
 import android.webkit.CookieManager
 import android.webkit.JavascriptInterface
 import android.webkit.PermissionRequest
@@ -62,6 +64,8 @@ class MainActivity : ComponentActivity() {
         web = WebView(this)
         configurarWeb(web)
 
+        val tope = View(this).apply { setBackgroundColor(colorBarra) }
+        val pie = View(this).apply { setBackgroundColor(colorFondo) }
         val raiz = FrameLayout(this).apply {
             setBackgroundColor(colorFondo)
             addView(
@@ -71,18 +75,39 @@ class MainActivity : ComponentActivity() {
                     FrameLayout.LayoutParams.MATCH_PARENT,
                 ),
             )
+            addView(
+                tope,
+                FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, 0).apply {
+                    gravity = Gravity.TOP
+                },
+            )
+            addView(
+                pie,
+                FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, 0).apply {
+                    gravity = Gravity.BOTTOM
+                },
+            )
         }
-        ViewCompat.setOnApplyWindowInsetsListener(raiz) { vista, insets ->
+        ViewCompat.setOnApplyWindowInsetsListener(raiz) { _, insets ->
             val barras = insets.getInsets(
                 WindowInsetsCompat.Type.systemBars() or WindowInsetsCompat.Type.displayCutout(),
             )
             val teclado = insets.getInsets(WindowInsetsCompat.Type.ime())
-            vista.updatePadding(
+            val abajo = maxOf(barras.bottom, teclado.bottom)
+            web.updatePadding(
                 left = barras.left,
                 top = barras.top,
                 right = barras.right,
-                bottom = maxOf(barras.bottom, teclado.bottom),
+                bottom = abajo,
             )
+            tope.layoutParams = FrameLayout.LayoutParams(
+                FrameLayout.LayoutParams.MATCH_PARENT,
+                barras.top,
+            ).apply { gravity = Gravity.TOP }
+            pie.layoutParams = FrameLayout.LayoutParams(
+                FrameLayout.LayoutParams.MATCH_PARENT,
+                abajo,
+            ).apply { gravity = Gravity.BOTTOM }
             WindowInsetsCompat.CONSUMED
         }
         setContentView(
