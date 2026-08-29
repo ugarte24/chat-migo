@@ -1,5 +1,5 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { PageHeader } from "@/components/panel/PageHeader";
 import { SelectorVoz } from "@/components/SelectorVoz";
@@ -8,7 +8,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { useAuth } from "@/lib/auth";
-import { esCascaraAndroid, versionCascaraAndroid } from "@/lib/nativo";
+import { AvisoActualizacionApk } from "@/components/AvisoActualizacionApk";
+import { codigoCascaraAndroid, esCascaraAndroid, versionCascaraAndroid } from "@/lib/nativo";
 import { actualizarDatosPerfil } from "@/lib/repositorio";
 import { useAsistente } from "@/lib/store";
 
@@ -24,6 +25,11 @@ function ConfiguracionPage() {
   const navigate = useNavigate();
   const [nombre, setNombre] = useState(perfil?.nombre ?? usuario);
   const [numero, setNumero] = useState(perfil?.numero ?? "");
+  const [enAndroid, setEnAndroid] = useState(false);
+
+  useEffect(() => {
+    setEnAndroid(esCascaraAndroid());
+  }, []);
 
   return (
     <div className="mx-auto max-w-3xl">
@@ -137,10 +143,14 @@ function ConfiguracionPage() {
         >
           Cerrar sesión
         </Button>
-        {esCascaraAndroid() ? (
-          <p className="text-xs text-muted-foreground">
-            Aplicación Dilo {versionCascaraAndroid() ?? ""}
-          </p>
+        {enAndroid ? (
+          <div className="space-y-3">
+            <p className="text-sm text-muted-foreground">
+              Aplicación Dilo {versionCascaraAndroid() ?? ""}
+              {codigoCascaraAndroid() != null ? ` (${codigoCascaraAndroid()})` : ""}
+            </p>
+            <AvisoActualizacionApk />
+          </div>
         ) : null}
       </Seccion>
     </div>

@@ -1,7 +1,8 @@
 import { createFileRoute, Navigate } from "@tanstack/react-router";
+import { NOMBRE_WEB } from "@/components/DiloIcono";
 
 export const Route = createFileRoute("/registro")({
-  head: () => ({ meta: [{ title: "Iniciar sesión | Dilo" }] }),
+  head: () => ({ meta: [{ title: `Iniciar sesión | ${NOMBRE_WEB}` }] }),
   component: RegistroPage,
 });
 

@@ -150,7 +150,8 @@ class MainActivity : ComponentActivity() {
             setSupportZoom(false)
             builtInZoomControls = false
             displayZoomControls = false
-            userAgentString = "$userAgentString DiloAndroid/${BuildConfig.VERSION_NAME}"
+            userAgentString =
+                "$userAgentString DiloAndroid/${BuildConfig.VERSION_NAME}/${BuildConfig.VERSION_CODE}"
         }
 
         vista.addJavascriptInterface(DiloPuente(), "DiloPuente")
@@ -207,6 +208,20 @@ class MainActivity : ComponentActivity() {
         fun version(): String = BuildConfig.VERSION_NAME
 
         @JavascriptInterface
+        fun versionCode(): Int = BuildConfig.VERSION_CODE
+
+        @JavascriptInterface
         fun tokenFcm(): String = DiloEstado.tokenFcm
+
+        @JavascriptInterface
+        fun abrirDescarga(url: String) {
+            try {
+                startActivity(
+                    Intent(Intent.ACTION_VIEW, Uri.parse(url)).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
+                )
+            } catch (_: Exception) {
+                /* el enlace se abre en el navegador si el sistema lo permite */
+            }
+        }
     }
 }

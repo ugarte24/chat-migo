@@ -3,6 +3,19 @@ plugins {
     id("org.jetbrains.kotlin.android")
 }
 
+val versionProps = java.util.Properties().apply {
+    val archivo = rootProject.file("version.properties")
+    if (archivo.exists()) archivo.reader().use { load(it) }
+}
+val diloVersionCode =
+    (findProperty("diloVersionCode") as String?)?.toIntOrNull()
+        ?: versionProps.getProperty("VERSION_CODE")?.toIntOrNull()
+        ?: 1
+val diloVersionName =
+    (findProperty("diloVersionName") as String?)
+        ?: versionProps.getProperty("VERSION_NAME")
+        ?: "1.0.0"
+
 android {
     namespace = "app.dilo.cascaron"
     compileSdk = 35
@@ -11,8 +24,8 @@ android {
         applicationId = "app.dilo.cascaron"
         minSdk = 26
         targetSdk = 35
-        versionCode = 2
-        versionName = "1.0.1"
+        versionCode = diloVersionCode
+        versionName = diloVersionName
     }
 
     val keystoreDilo = file("dilo-debug.keystore")

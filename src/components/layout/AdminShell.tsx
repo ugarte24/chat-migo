@@ -12,7 +12,7 @@ import {
   Smartphone,
   Users,
 } from "lucide-react";
-import { DiloIcono } from "@/components/DiloIcono";
+import { MarcaWebIcono, NOMBRE_WEB } from "@/components/DiloIcono";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { useAuth } from "@/lib/auth";
@@ -38,9 +38,10 @@ export function AdminShell({ children }: { children: ReactNode }) {
   return (
     <div className="flex min-h-screen bg-background">
       <aside className="hidden w-64 shrink-0 flex-col border-r border-border bg-sidebar lg:flex">
-        <Link to="/" className="flex items-center gap-2 border-b border-border px-5 py-5">
-          <div>
-            <p className="font-display text-base font-semibold leading-tight">Dilo</p>
+        <Link to="/" className="flex items-center gap-2.5 border-b border-border px-5 py-5">
+          <MarcaWebIcono className="size-8" />
+          <div className="min-w-0">
+            <p className="font-display text-base font-semibold leading-tight">{NOMBRE_WEB}</p>
             <p className="text-[11px] text-muted-foreground">Administración</p>
           </div>
         </Link>
@@ -76,8 +77,8 @@ export function AdminShell({ children }: { children: ReactNode }) {
             <SheetContent side="left" className="w-72 p-0">
               <SheetHeader className="border-b border-border px-4 py-4 text-left">
                 <SheetTitle className="inline-flex items-center gap-2">
-                  <DiloIcono className="size-6" />
-                  Administración
+                  <MarcaWebIcono className="size-6" />
+                  {NOMBRE_WEB}
                 </SheetTitle>
               </SheetHeader>
               <nav className="space-y-1 p-3">

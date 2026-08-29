@@ -13,6 +13,7 @@ export const Route = createFileRoute("/admin/aplicacion")({
 interface InfoApk {
   disponible: boolean;
   version: string | null;
+  versionCode: number | null;
   archivo: string | null;
   actualizado: string | null;
   tamano: number | null;
@@ -35,6 +36,7 @@ function AplicacionPage() {
       setInfo({
         disponible: false,
         version: null,
+        versionCode: null,
         archivo: null,
         actualizado: null,
         tamano: null,
@@ -49,6 +51,7 @@ function AplicacionPage() {
       setInfo({
         disponible: false,
         version: null,
+        versionCode: null,
         archivo: null,
         actualizado: null,
         tamano: null,
@@ -64,6 +67,7 @@ function AplicacionPage() {
     setInfo({
       disponible: Boolean(cuerpo.disponible),
       version: cuerpo.version ?? null,
+      versionCode: typeof cuerpo.versionCode === "number" ? cuerpo.versionCode : null,
       archivo: cuerpo.archivo ?? null,
       actualizado: cuerpo.actualizado ?? null,
       tamano: cuerpo.tamano ?? null,
@@ -108,7 +112,7 @@ function AplicacionPage() {
     <div>
       <PageHeader
         titulo="Aplicación Android"
-        descripcion="La APK es una cáscara: orbe, micrófono y avisos. Lo demás se actualiza con cada git push a Vercel."
+        descripcion="Cada vez que se publica un APK nuevo, la versión sube sola. Los usuarios ven un aviso en el celular para instalarla encima."
       />
       <article className="panel-card space-y-4 p-6">
         <h2 className="font-display text-base font-semibold">Descargar APK</h2>
@@ -116,7 +120,9 @@ function AplicacionPage() {
           <p className="text-sm text-muted-foreground">Comprobando si hay un instalador…</p>
         ) : info?.disponible ? (
           <p className="text-sm text-muted-foreground">
-            {info.version ? `Versión ${info.version}` : "Lista para instalar"}
+            {info.version
+              ? `Versión ${info.version}${info.versionCode != null ? ` (${info.versionCode})` : ""}`
+              : "Lista para instalar"}
             {fecha ? ` · ${fecha}` : ""}
             {tamano ? ` · ${tamano}` : ""}. El archivo es {nombreArchivo}. Instálala encima de la
             anterior, sin borrar la app.
@@ -145,8 +151,14 @@ function AplicacionPage() {
           y pásales este APK.
         </p>
         <p>
-          Solo vuelve a generar un APK (Actions) si cambias icono, permisos, FCM o la URL de Vercel
-          embebida en Android.
+          La versión se incrementa sola en cada publicación (Actions → APK, o un push que toque
+          `android/`). No hay que editarla a mano. El archivo queda como Dilo-1.0.2.apk,
+          Dilo-1.0.3.apk, etc.
+        </p>
+        <p>
+          Solo vuelve a generar un APK si cambias icono, permisos, FCM o la URL de Vercel embebida
+          en Android. El resto de la interfaz se actualiza con cada git push a Vercel, sin
+          reinstalar.
         </p>
       </article>
     </div>

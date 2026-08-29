@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { Link, useNavigate } from "@tanstack/react-router";
 import { LogOut, MessageSquare, MoreHorizontal, Send, Settings, Shield, Volume2, VolumeX } from "lucide-react";
+import { AvisoActualizacionApk } from "@/components/AvisoActualizacionApk";
 import { DiloOrbe, type EstadoOrbe } from "@/components/DiloOrbe";
 import {
   DropdownMenu,
@@ -16,6 +17,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { useAuth } from "@/lib/auth";
 import { useAsistente } from "@/lib/store";
+import { esCascaraAndroid, versionCascaraAndroid } from "@/lib/nativo";
 import { nombreDePila } from "@/lib/utils";
 import { VOCES_DILO, vozPorId } from "@/lib/voces";
 import {
@@ -68,6 +70,11 @@ export function Dilo() {
   const detenerRef = useRef<(() => Promise<{ blob: Blob; dicho: string }>) | null>(null);
   const cortandoRef = useRef(false);
   const hayMic = microfonoDisponible();
+  const [enAndroid, setEnAndroid] = useState(false);
+
+  useEffect(() => {
+    setEnAndroid(esCascaraAndroid());
+  }, []);
   const [indiceConsejo, setIndiceConsejo] = useState(0);
   const [borrador, setBorrador] = useState("");
   const [enSesion, setEnSesion] = useState(false);
@@ -317,6 +324,11 @@ export function Dilo() {
       <header className="relative z-10 flex h-16 shrink-0 items-center gap-3 px-4 sm:px-5">
         <span className="text-[17px] font-medium tracking-tight text-[#202124]">
           Dilo
+          {enAndroid && versionCascaraAndroid() ? (
+            <span className="ml-2 text-[12px] font-normal text-[#80868b]">
+              {versionCascaraAndroid()}
+            </span>
+          ) : null}
         </span>
         <div className="ml-auto flex items-center gap-0.5 rounded-full bg-white/70 p-0.5 shadow-[0_1px_2px_rgb(60_64_67/0.12)] ring-1 ring-[#dadce0]/70 backdrop-blur-md">
           <IconoBarra
@@ -350,6 +362,8 @@ export function Dilo() {
           />
         </div>
       </header>
+
+      <AvisoActualizacionApk compacto />
 
       <div className="relative z-10 flex min-h-0 flex-1 flex-col px-6 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
         <div className="flex min-h-0 flex-1 flex-col items-center justify-center">

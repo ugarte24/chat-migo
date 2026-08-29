@@ -1,12 +1,13 @@
 import { createFileRoute, Link, Navigate } from "@tanstack/react-router";
 import { useState, type FormEvent } from "react";
+import { MarcaWeb, NOMBRE_WEB } from "@/components/DiloIcono";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { destinoTrasLogin, useAuth } from "@/lib/auth";
 
 export const Route = createFileRoute("/iniciar-sesion")({
-  head: () => ({ meta: [{ title: "Iniciar sesión | Dilo" }] }),
+  head: () => ({ meta: [{ title: `Iniciar sesión | ${NOMBRE_WEB}` }] }),
   component: IniciarSesionPage,
 });
 
@@ -37,7 +38,7 @@ function IniciarSesionPage() {
     <main className="flex min-h-screen items-center justify-center bg-hero-glow px-4">
       <div className="w-full max-w-md">
         <Link to="/" className="mb-8 flex items-center justify-center">
-          <span className="font-display text-lg font-semibold">Dilo</span>
+          <MarcaWeb className="font-display text-lg font-semibold" />
         </Link>
         <form onSubmit={(e) => void onSubmit(e)} className="panel-card space-y-4 p-6">
           <div>

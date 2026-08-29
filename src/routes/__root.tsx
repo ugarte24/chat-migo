@@ -86,9 +86,9 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1, viewport-fit=cover" },
-      { title: "Dilo" },
-      { name: "application-name", content: "Dilo" },
-      { name: "apple-mobile-web-app-title", content: "Dilo" },
+      { title: "Dilo - Asistente" },
+      { name: "application-name", content: "Dilo - Asistente" },
+      { name: "apple-mobile-web-app-title", content: "Dilo - Asistente" },
       { name: "apple-mobile-web-app-capable", content: "yes" },
       { name: "mobile-web-app-capable", content: "yes" },
       {
@@ -97,7 +97,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
           "Toca el orbe y dilo. Dilo convierte tu voz en tareas, recordatorios, eventos y automatizaciones.",
       },
       { name: "theme-color", content: "#0ea5e9" },
-      { property: "og:title", content: "Dilo" },
+      { property: "og:title", content: "Dilo - Asistente" },
       {
         property: "og:description",
         content:

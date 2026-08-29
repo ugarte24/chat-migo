@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { exigirAdministrador, supabaseServicio } from "@/lib/supabase-servidor";
+import { exigirAdministrador, exigirUsuario, supabaseServicio } from "@/lib/supabase-servidor";
 
 const CUBETA = "apk";
 const MANIFESTO = "latest.json";
@@ -46,16 +46,30 @@ export const Route = createFileRoute("/api/apk")({
   server: {
     handlers: {
       GET: async ({ request }) => {
-        const adminId = await exigirAdministrador(request);
-        if (!adminId) {
-          return Response.json({ error: "Solo el administrador puede descargar la APK." }, { status: 403 });
+        const params = new URL(request.url).searchParams;
+        const publica = params.has("publica");
+        const info = params.has("info");
+
+        if (info) {
+          const adminId = await exigirAdministrador(request);
+          if (!adminId) {
+            return Response.json(
+              { error: "Solo el administrador puede ver el detalle de la APK." },
+              { status: 403 },
+            );
+          }
+        } else if (!publica) {
+          const userId = await exigirUsuario(request);
+          if (!userId) {
+            return Response.json({ error: "Inicia sesión para descargar la APK." }, { status: 403 });
+          }
         }
+
         const db = supabaseServicio();
         if (!db) {
           return Response.json({ error: "Falta SUPABASE_SERVICE_ROLE_KEY en el servidor." }, { status: 503 });
         }
 
-        const info = new URL(request.url).searchParams.has("info");
         const { data: lista, error: errorLista } = await db.storage.from(CUBETA).list("", { limit: 100 });
         if (errorLista) {
           return Response.json(
@@ -88,25 +102,30 @@ export const Route = createFileRoute("/api/apk")({
         }
 
         const version =
-          manifesto?.archivo === nombre ? manifesto.version : extraerVersion(nombre);
-        const versionCode = manifesto?.archivo === nombre ? manifesto.versionCode : null;
+          (manifesto?.archivo === nombre ? manifesto.version : extraerVersion(nombre)) ??
+          manifesto?.version ??
+          null;
+        const versionCode = typeof manifesto?.versionCode === "number" ? manifesto.versionCode : null;
 
-        if (info) {
-          return Response.json({
+        if (publica || info) {
+          const cuerpo: Record<string, unknown> = {
             disponible: true,
             version,
             versionCode,
             archivo: nombre,
-            actualizado: archivo.updated_at ?? archivo.created_at,
-            tamano: tamanoDe(archivo),
-          });
+          };
+          if (info) {
+            cuerpo.actualizado = archivo.updated_at ?? archivo.created_at;
+            cuerpo.tamano = tamanoDe(archivo);
+          }
+          return Response.json(cuerpo);
         }
 
         const { data, error } = await db.storage.from(CUBETA).createSignedUrl(nombre, 120);
         if (error || !data?.signedUrl) {
           return Response.json({ error: error?.message || "No se pudo firmar la descarga." }, { status: 400 });
         }
-        return Response.json({ url: data.signedUrl, archivo: nombre, version });
+        return Response.json({ url: data.signedUrl, archivo: nombre, version, versionCode });
       },
     },
   },

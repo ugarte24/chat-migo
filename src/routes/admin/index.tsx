@@ -1,10 +1,11 @@
 import { Link, createFileRoute } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
+import { NOMBRE_WEB } from "@/components/DiloIcono";
 import { PageHeader, StatCard } from "@/components/panel/PageHeader";
 import { contarTabla, listarPerfiles } from "@/lib/repositorio";
 
 export const Route = createFileRoute("/admin/")({
-  head: () => ({ meta: [{ title: "Administración | Dilo" }] }),
+  head: () => ({ meta: [{ title: `Administración | ${NOMBRE_WEB}` }] }),
   component: AdminDashboard,
 });
 

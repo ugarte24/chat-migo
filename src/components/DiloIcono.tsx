@@ -1,6 +1,10 @@
 import { useId } from "react";
 import { cn } from "@/lib/utils";
 
+/** Nombre de la web (landing, login, administración). La app Android sigue siendo Dilo. */
+export const NOMBRE_WEB = "Dilo - Asistente";
+
+/** Orbe de la app Android. No usar en la web de presentación ni en admin. */
 export function DiloIcono({
   className,
   titulo = "Dilo",
@@ -41,15 +45,62 @@ export function DiloIcono({
   );
 }
 
+/** Icono de la web: DA en un cuadrado redondeado. */
+export function MarcaWebIcono({
+  className,
+  titulo = NOMBRE_WEB,
+  decorative = false,
+}: {
+  className?: string;
+  titulo?: string;
+  decorative?: boolean;
+}) {
+  return (
+    <svg
+      viewBox="0 0 32 32"
+      className={cn("shrink-0", className)}
+      role={decorative ? "presentation" : "img"}
+      aria-hidden={decorative || undefined}
+      aria-label={decorative ? undefined : titulo}
+    >
+      {decorative ? null : <title>{titulo}</title>}
+      <rect width="32" height="32" rx="8" fill="#1e3a8a" />
+      <text
+        x="16"
+        y="21.4"
+        textAnchor="middle"
+        fill="#ffffff"
+        fontSize="12.5"
+        fontWeight="700"
+        fontFamily="ui-sans-serif, system-ui, Segoe UI, sans-serif"
+        letterSpacing="-0.4"
+      >
+        DA
+      </text>
+    </svg>
+  );
+}
+
+export function MarcaWeb({
+  className,
+  iconoClassName,
+}: {
+  className?: string;
+  iconoClassName?: string;
+}) {
+  return (
+    <span className={cn("inline-flex items-center gap-2", className)}>
+      <MarcaWebIcono className={cn("size-7", iconoClassName)} decorative />
+      <span>{NOMBRE_WEB}</span>
+    </span>
+  );
+}
+
 export function DiloMarca({
   className,
 }: {
   className?: string;
   tamano?: "sm" | "md";
 }) {
-  return (
-    <span className={className}>
-      Dilo
-    </span>
-  );
+  return <MarcaWeb className={className} />;
 }

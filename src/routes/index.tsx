@@ -26,6 +26,7 @@ import { Button } from "@/components/ui/button";
 import { AutomationPreview } from "@/components/landing/AutomationPreview";
 import { HeroConversation } from "@/components/landing/HeroConversation";
 import { InteractiveDemo } from "@/components/landing/InteractiveDemo";
+import { MarcaWeb } from "@/components/DiloIcono";
 import { LandingNav } from "@/components/landing/LandingNav";
 import { MemoryPreview } from "@/components/landing/MemoryPreview";
 import { Reveal } from "@/components/landing/Reveal";
@@ -33,13 +34,13 @@ import { Reveal } from "@/components/landing/Reveal";
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "Dilo" },
+      { title: "Dilo - Asistente" },
       {
         name: "description",
         content:
           "Toca el orbe y dilo. Dilo convierte tu voz en tareas, recordatorios, eventos y automatizaciones. Los avisos llegan al celular.",
       },
-      { property: "og:title", content: "Dilo | Organiza, recuerda y automatiza" },
+      { property: "og:title", content: "Dilo - Asistente | Organiza, recuerda y automatiza" },
       {
         property: "og:description",
         content:
@@ -489,9 +490,7 @@ function Landing() {
       <footer className="border-t border-[#E2E8F0] px-5 py-16 md:px-8">
         <div className="mx-auto flex max-w-6xl flex-col gap-10 md:flex-row md:justify-between">
           <div>
-            <p className="text-sm font-extrabold">
-              Dilo
-            </p>
+            <MarcaWeb className="text-sm font-extrabold" iconoClassName="size-6" />
             <p className="mt-2 text-sm text-[#64748B]">
               Toca el orbe. Organiza. Recuerda. Automatiza.
             </p>
@@ -517,7 +516,7 @@ function Landing() {
           </nav>
         </div>
         <p className="mx-auto mt-12 max-w-6xl text-xs text-[#64748B]">
-          © {new Date().getFullYear()} Dilo. Todos los derechos reservados.
+          © {new Date().getFullYear()} Dilo - Asistente. Todos los derechos reservados.
         </p>
       </footer>
     </div>
