@@ -3,18 +3,13 @@ plugins {
     id("org.jetbrains.kotlin.android")
 }
 
-val versionProps = java.util.Properties().apply {
-    val archivo = rootProject.file("version.properties")
-    if (archivo.exists()) archivo.reader().use { load(it) }
+val versionProps = java.util.Properties()
+val versionFile = rootProject.file("version.properties")
+if (versionFile.exists()) {
+    versionFile.inputStream().use { versionProps.load(it) }
 }
-val diloVersionCode =
-    (findProperty("diloVersionCode") as String?)?.toIntOrNull()
-        ?: versionProps.getProperty("VERSION_CODE")?.toIntOrNull()
-        ?: 1
-val diloVersionName =
-    (findProperty("diloVersionName") as String?)
-        ?: versionProps.getProperty("VERSION_NAME")
-        ?: "1.0.0"
+val diloVersionCode = versionProps.getProperty("VERSION_CODE", "1").trim().toInt()
+val diloVersionName = versionProps.getProperty("VERSION_NAME", "1.0.0").trim()
 
 android {
     namespace = "app.dilo.cascaron"

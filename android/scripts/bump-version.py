@@ -64,10 +64,11 @@ def main() -> None:
     code += 1
     name = bump_name(name)
     p.write_text(
-        "# Lo incrementa GitHub Actions en cada APK publicado. No hace falta editarlo a mano.\n"
+        "# Lo incrementa GitHub Actions en cada APK. No editar a mano.\n"
         f"VERSION_CODE={code}\n"
         f"VERSION_NAME={name}\n",
-        encoding="utf-8",
+        encoding="ascii",
+        errors="replace",
     )
 
     out = os.environ.get("GITHUB_OUTPUT")
