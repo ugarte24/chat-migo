@@ -1,3 +1,4 @@
+import { esCascaraAndroid, usarParlanteNativo } from "./nativo";
 import { fetchConTiempo } from "./utils";
 
 const SILENCIO =
@@ -160,6 +161,7 @@ export async function prefetchHablar(texto: string, vozId?: string) {
 }
 
 async function reproducirBuffer(buf: ArrayBuffer) {
+  usarParlanteNativo();
   await pararSilencio();
   if (await reproducirEnElemento(buf)) return true;
   return reproducirEnContexto(buf);
@@ -196,7 +198,8 @@ async function reproducirEnElemento(buf: ArrayBuffer) {
   el.src = url;
   audioActual = el;
   let pararFake: (() => void) | null = null;
-  const ctx = await contextoListo();
+  // En la APK, createMediaElementSource se traga el audio y no llega al parlante.
+  const ctx = esCascaraAndroid() ? null : await contextoListo();
   if (ctx) {
     try {
       const fuente = ctx.createMediaElementSource(el);
@@ -214,10 +217,21 @@ async function reproducirEnElemento(buf: ArrayBuffer) {
   try {
     await el.play();
     await new Promise<void>((resolve) => {
-      const listo = () => resolve();
+      let listoYa = false;
+      let arranco = false;
+      const listo = () => {
+        if (listoYa) return;
+        listoYa = true;
+        resolve();
+      };
       el.onended = listo;
       el.onerror = listo;
-      el.addEventListener("pause", listo, { once: true });
+      el.addEventListener("playing", () => {
+        arranco = true;
+      });
+      el.addEventListener("pause", () => {
+        if (arranco) listo();
+      });
     });
     return true;
   } catch {
@@ -291,6 +305,7 @@ async function mantenerAltavozVivo() {
 
 export async function desbloquearAudio() {
   if (typeof Audio === "undefined") return;
+  usarParlanteNativo();
   await contextoListo();
   const el = prepararAltavoz();
   try {
@@ -587,6 +602,7 @@ function iniciarSoloReconocimiento(
     }
   };
   rec.start();
+  usarParlanteNativo();
   publicarNivel(0.14);
   const decaer = window.setInterval(() => {
     if (cerrado) {
@@ -635,11 +651,15 @@ export async function iniciarGrabacion(
 
 async function pedirMicrofono() {
   try {
-    return await navigator.mediaDevices.getUserMedia({
+    const stream = await navigator.mediaDevices.getUserMedia({
       audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true },
     });
+    usarParlanteNativo();
+    return stream;
   } catch {
-    return navigator.mediaDevices.getUserMedia({ audio: true });
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    usarParlanteNativo();
+    return stream;
   }
 }
 
@@ -795,6 +815,7 @@ async function emitirHabla(texto: string, vozId: string | undefined, gen: number
     /* ya parada */
   }
   fuenteActual = null;
+  usarParlanteNativo();
   await contextoListo();
   if (gen !== generacionHabla) return;
 

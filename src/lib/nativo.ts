@@ -13,6 +13,7 @@ declare global {
       version?: () => string;
       versionCode?: () => number;
       tokenFcm?: () => string;
+      usarParlante?: () => void;
       abrirDescarga?: (url: string) => void;
     };
   }
@@ -65,6 +66,16 @@ export function codigoCascaraAndroid() {
   }
   const ua = marcaUserAgent()?.versionCode;
   return ua && Number.isFinite(ua) ? ua : null;
+}
+
+/** Fuerza el parlante del teléfono (el micrófono de Android manda el audio al auricular). */
+export function usarParlanteNativo() {
+  try {
+    if (typeof window.DiloPuente?.usarParlante !== "function") return;
+    window.DiloPuente.usarParlante();
+  } catch {
+    /* fuera de la APK no hay puente */
+  }
 }
 
 export function abrirDescargaNativa(url: string) {

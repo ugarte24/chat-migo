@@ -2,8 +2,13 @@ package app.dilo.cascaron
 
 import android.Manifest
 import android.annotation.SuppressLint
+import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.media.AudioAttributes
+import android.media.AudioDeviceInfo
+import android.media.AudioFocusRequest
+import android.media.AudioManager
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
@@ -30,6 +35,7 @@ import org.json.JSONObject
 
 class MainActivity : ComponentActivity() {
     private lateinit var web: WebView
+    private var pedidoFoco: AudioFocusRequest? = null
 
     private val pedirPermisos = registerForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions(),
@@ -39,10 +45,17 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         WindowCompat.setDecorFitsSystemWindows(window, false)
         val colorBarra = ContextCompat.getColor(this, R.color.dilo_cian)
+        val colorFondo = ContextCompat.getColor(this, R.color.dilo_fondo)
         window.statusBarColor = colorBarra
-        WindowCompat.getInsetsController(window, window.decorView).isAppearanceLightStatusBars = false
+        window.navigationBarColor = colorFondo
+        WindowCompat.getInsetsController(window, window.decorView).apply {
+            isAppearanceLightStatusBars = false
+            isAppearanceLightNavigationBars = true
+        }
         DiloEstado.actividad = this
         DiloAvisos.crearCanal(this)
+        volumeControlStream = AudioManager.STREAM_MUSIC
+        activarParlante()
         solicitarPermisosNativos()
         pedirTokenFcm()
 
@@ -50,7 +63,7 @@ class MainActivity : ComponentActivity() {
         configurarWeb(web)
 
         val raiz = FrameLayout(this).apply {
-            setBackgroundColor(colorBarra)
+            setBackgroundColor(colorFondo)
             addView(
                 web,
                 FrameLayout.LayoutParams(
@@ -61,14 +74,14 @@ class MainActivity : ComponentActivity() {
         }
         ViewCompat.setOnApplyWindowInsetsListener(raiz) { vista, insets ->
             val barras = insets.getInsets(
-                WindowInsetsCompat.Type.statusBars() or WindowInsetsCompat.Type.displayCutout(),
+                WindowInsetsCompat.Type.systemBars() or WindowInsetsCompat.Type.displayCutout(),
             )
             val teclado = insets.getInsets(WindowInsetsCompat.Type.ime())
             vista.updatePadding(
                 left = barras.left,
                 top = barras.top,
                 right = barras.right,
-                bottom = teclado.bottom,
+                bottom = maxOf(barras.bottom, teclado.bottom),
             )
             WindowInsetsCompat.CONSUMED
         }
@@ -95,6 +108,7 @@ class MainActivity : ComponentActivity() {
     override fun onResume() {
         super.onResume()
         web.onResume()
+        activarParlante()
     }
 
     override fun onPause() {
@@ -183,6 +197,9 @@ class MainActivity : ComponentActivity() {
             userAgentString =
                 "$userAgentString DiloAndroid/${BuildConfig.VERSION_NAME}/${BuildConfig.VERSION_CODE}"
         }
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            vista.setAudioMuted(false)
+        }
 
         vista.addJavascriptInterface(DiloPuente(), "DiloPuente")
         vista.webViewClient = object : WebViewClient() {
@@ -224,9 +241,49 @@ class MainActivity : ComponentActivity() {
                     val audio = request.resources.filter {
                         it == PermissionRequest.RESOURCE_AUDIO_CAPTURE
                     }.toTypedArray()
-                    if (audio.isEmpty()) request.deny() else request.grant(audio)
+                    if (audio.isEmpty()) request.deny() else {
+                        request.grant(audio)
+                        activarParlante()
+                    }
                 }
             }
+        }
+    }
+
+    /**
+     * getUserMedia pone MODE_IN_COMMUNICATION y Android manda la salida al auricular.
+     * Sin esto la voz de Dilo no se oye (o se oye pegando el teléfono a la oreja).
+     */
+    private fun activarParlante() {
+        val am = getSystemService(Context.AUDIO_SERVICE) as AudioManager
+        try {
+            volumeControlStream = AudioManager.STREAM_MUSIC
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                val attrs = AudioAttributes.Builder()
+                    .setUsage(AudioAttributes.USAGE_MEDIA)
+                    .setContentType(AudioAttributes.CONTENT_TYPE_SPEECH)
+                    .build()
+                val pedido = AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN)
+                    .setAudioAttributes(attrs)
+                    .setAcceptsDelayedFocusGain(false)
+                    .build()
+                pedidoFoco = pedido
+                am.requestAudioFocus(pedido)
+            } else {
+                @Suppress("DEPRECATION")
+                am.requestAudioFocus(null, AudioManager.STREAM_MUSIC, AudioManager.AUDIOFOCUS_GAIN)
+            }
+            am.mode = AudioManager.MODE_IN_COMMUNICATION
+            @Suppress("DEPRECATION")
+            am.isSpeakerphoneOn = true
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                val parlante = am.availableCommunicationDevices.firstOrNull {
+                    it.type == AudioDeviceInfo.TYPE_BUILTIN_SPEAKER
+                }
+                if (parlante != null) am.setCommunicationDevice(parlante)
+            }
+        } catch (_: Exception) {
+            /* el WebView igual puede reproducir por el altavoz del sistema */
         }
     }
 
@@ -242,6 +299,11 @@ class MainActivity : ComponentActivity() {
 
         @JavascriptInterface
         fun tokenFcm(): String = DiloEstado.tokenFcm
+
+        @JavascriptInterface
+        fun usarParlante() {
+            runOnUiThread { activarParlante() }
+        }
 
         @JavascriptInterface
         fun abrirDescarga(url: String) {
