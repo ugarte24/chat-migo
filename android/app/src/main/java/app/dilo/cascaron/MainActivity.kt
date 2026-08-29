@@ -197,9 +197,6 @@ class MainActivity : ComponentActivity() {
             userAgentString =
                 "$userAgentString DiloAndroid/${BuildConfig.VERSION_NAME}/${BuildConfig.VERSION_CODE}"
         }
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            vista.setAudioMuted(false)
-        }
 
         vista.addJavascriptInterface(DiloPuente(), "DiloPuente")
         vista.webViewClient = object : WebViewClient() {
