@@ -113,7 +113,8 @@ jobs:
             fi
           }
           subir "${APK_ARCHIVO}" "application/vnd.android.package-archive" "/tmp/${APK_ARCHIVO}"
-          subir "latest.json" "application/json" "/tmp/latest.json"
+          # La cubeta apk no admite application/json; octet-stream sí.
+          subir "latest.json" "application/octet-stream" "/tmp/latest.json"
 
       - name: Guardar versión en el repo
         if: github.ref == 'refs/heads/main'
