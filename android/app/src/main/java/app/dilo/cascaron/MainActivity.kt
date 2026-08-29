@@ -4,7 +4,6 @@ import android.Manifest
 import android.annotation.SuppressLint
 import android.content.Intent
 import android.content.pm.PackageManager
-import android.graphics.Color
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
@@ -21,6 +20,10 @@ import androidx.activity.ComponentActivity
 import androidx.activity.OnBackPressedCallback
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.content.ContextCompat
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowCompat
+import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.updatePadding
 import com.google.firebase.FirebaseApp
 import com.google.firebase.messaging.FirebaseMessaging
 import org.json.JSONObject
@@ -34,7 +37,10 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        window.statusBarColor = Color.parseColor("#0EA5E9")
+        WindowCompat.setDecorFitsSystemWindows(window, false)
+        val colorBarra = ContextCompat.getColor(this, R.color.dilo_cian)
+        window.statusBarColor = colorBarra
+        WindowCompat.getInsetsController(window, window.decorView).isAppearanceLightStatusBars = false
         DiloEstado.actividad = this
         DiloAvisos.crearCanal(this)
         solicitarPermisosNativos()
@@ -42,8 +48,32 @@ class MainActivity : ComponentActivity() {
 
         web = WebView(this)
         configurarWeb(web)
+
+        val raiz = FrameLayout(this).apply {
+            setBackgroundColor(colorBarra)
+            addView(
+                web,
+                FrameLayout.LayoutParams(
+                    FrameLayout.LayoutParams.MATCH_PARENT,
+                    FrameLayout.LayoutParams.MATCH_PARENT,
+                ),
+            )
+        }
+        ViewCompat.setOnApplyWindowInsetsListener(raiz) { vista, insets ->
+            val barras = insets.getInsets(
+                WindowInsetsCompat.Type.statusBars() or WindowInsetsCompat.Type.displayCutout(),
+            )
+            val teclado = insets.getInsets(WindowInsetsCompat.Type.ime())
+            vista.updatePadding(
+                left = barras.left,
+                top = barras.top,
+                right = barras.right,
+                bottom = teclado.bottom,
+            )
+            WindowInsetsCompat.CONSUMED
+        }
         setContentView(
-            web,
+            raiz,
             FrameLayout.LayoutParams(
                 FrameLayout.LayoutParams.MATCH_PARENT,
                 FrameLayout.LayoutParams.MATCH_PARENT,
