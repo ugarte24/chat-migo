@@ -13,6 +13,9 @@ let gananciaActual: GainNode | null = null;
 let audioDesbloqueado = false;
 let generacionHabla = 0;
 let hablaEnCurso: Promise<void> = Promise.resolve();
+let colaHabla: Promise<void> = Promise.resolve();
+let hablaPendiente = 0;
+let turnoVozAbierto = false;
 const cacheHablar = new Map<string, ArrayBuffer>();
 
 type NivelCb = (nivel: number) => void;
@@ -816,18 +819,82 @@ async function iniciarGrabacionArchivo(alCortar?: () => void, continuo = false):
   };
 }
 
+export function extraerFrasesVoz(buffer: string, forzarResto: boolean) {
+  const listas: string[] = [];
+  let resto = buffer;
+  const re = /^([\s\S]*?[.!?…]+)(\s+|$)/;
+  while (true) {
+    const m = resto.match(re);
+    if (!m) break;
+    const frase = (m[1] ?? "").trim();
+    if (frase) listas.push(frase);
+    resto = resto.slice(m[0].length);
+  }
+  if (forzarResto) {
+    const cola = resto.trim();
+    if (cola) listas.push(cola);
+    resto = "";
+  } else if (resto.length > 72) {
+    const corte = Math.max(resto.lastIndexOf(", "), resto.lastIndexOf(" "));
+    if (corte > 24) {
+      listas.push(resto.slice(0, corte).trim());
+      resto = resto.slice(corte).trimStart();
+    }
+  }
+  return { listas, resto };
+}
+
 export function esperaFinHabla() {
-  return hablaEnCurso.catch(() => undefined);
+  return (async () => {
+    while (turnoVozAbierto || hablaPendiente > 0) {
+      await colaHabla.catch(() => undefined);
+      if (!turnoVozAbierto && hablaPendiente === 0) break;
+      await new Promise((r) => window.setTimeout(r, 40));
+    }
+    await hablaEnCurso.catch(() => undefined);
+  })();
+}
+
+export function abrirTurnoVoz() {
+  silenciar();
+  turnoVozAbierto = true;
+}
+
+export function cerrarTurnoVoz() {
+  turnoVozAbierto = false;
+}
+
+export function encolarHabla(texto: string, vozId?: string) {
+  const gen = generacionHabla;
+  hablaPendiente += 1;
+  colaHabla = colaHabla
+    .then(async () => {
+      if (gen !== generacionHabla) return;
+      await emitirHabla(texto, vozId, gen);
+    })
+    .catch(() => undefined)
+    .then(() => {
+      if (gen === generacionHabla) {
+        hablaPendiente = Math.max(0, hablaPendiente - 1);
+      }
+    });
+  hablaEnCurso = colaHabla;
+}
+
+/** Si hay un turno de voz abierto, encola; si no, habla ya. */
+export function decir(texto: string, vozId?: string) {
+  if (turnoVozAbierto || hablaPendiente > 0) {
+    void prefetchHablar(texto, vozId);
+    encolarHabla(texto, vozId);
+    return;
+  }
+  void hablar(texto, vozId);
 }
 
 export async function hablar(texto: string, vozId?: string) {
-  const gen = ++generacionHabla;
-  const trabajo = emitirHabla(texto, vozId, gen);
-  hablaEnCurso = trabajo.then(
-    () => undefined,
-    () => undefined,
-  );
-  await trabajo;
+  silenciar();
+  encolarHabla(texto, vozId);
+  await colaHabla;
 }
 
 async function emitirHabla(texto: string, vozId: string | undefined, gen: number) {
@@ -898,6 +965,10 @@ async function hablarEnNavegador(texto: string) {
 
 export function silenciar() {
   generacionHabla += 1;
+  turnoVozAbierto = false;
+  hablaPendiente = 0;
+  colaHabla = Promise.resolve();
+  hablaEnCurso = colaHabla;
   pararLatidoActual?.();
   pararMedidor();
   if (sintesisVozDisponible()) window.speechSynthesis.cancel();

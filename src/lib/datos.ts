@@ -93,6 +93,8 @@ export interface MensajeChat {
   };
   transcripcion?: string;
   etapaVoz?: "recibida" | "transcribiendo" | "transcrito" | "interpretando" | "ejecutado";
+  /** La burbuja se está escribiendo (streaming). */
+  enCurso?: boolean;
 }
 
 export interface ConfiguracionUsuario {

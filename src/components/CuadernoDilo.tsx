@@ -54,6 +54,8 @@ export function CuadernoDilo() {
   }, [busqueda, visibles]);
 
   const grupos = useMemo(() => agruparPorDia(filtrados), [filtrados]);
+  const ultimoTexto = visibles[visibles.length - 1]?.texto;
+  const escribiendo = visibles.some((m) => m.enCurso);
 
   useLayoutEffect(() => {
     const lista = listaRef.current;
@@ -71,8 +73,8 @@ export function CuadernoDilo() {
       if (visibles.length > 0) entroRef.current = true;
       return;
     }
-    alFinal(true);
-  }, [visibles.length, pensando]);
+    alFinal(!escribiendo);
+  }, [visibles.length, pensando, ultimoTexto, escribiendo]);
 
   useEffect(() => {
     if (buscar) buscarRef.current?.focus();
@@ -163,7 +165,7 @@ export function CuadernoDilo() {
             </section>
           ))
         )}
-        {pensando ? <BurbujaPensando /> : null}
+        {pensando && !visibles.some((m) => m.enCurso && m.texto) ? <BurbujaPensando /> : null}
         <div ref={finRef} />
       </div>
 
@@ -274,7 +276,12 @@ function Burbuja({
             Hecho
           </span>
         ) : null}
-        <p className="whitespace-pre-line">{m.texto}</p>
+        <p className="whitespace-pre-line">
+          {m.texto}
+          {m.enCurso ? (
+            <span className="ml-0.5 inline-block h-3.5 w-0.5 translate-y-0.5 bg-[#0891b2] [animation:dilo-punto_1s_ease-in-out_infinite]" />
+          ) : null}
+        </p>
         {mostrarHora ? (
           <span className={cn("mt-1 block text-right text-[10px]", esUsuario ? "text-white/70" : "text-[#80868b]")}>
             {m.hora}

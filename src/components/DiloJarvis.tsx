@@ -1,6 +1,6 @@
-import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Link, useNavigate } from "@tanstack/react-router";
-import { LogOut, MessageSquare, MoreHorizontal, Send, Settings, Shield, Volume2, VolumeX } from "lucide-react";
+import { LogOut, MessageSquare, MoreHorizontal, Settings, Shield, Volume2, VolumeX } from "lucide-react";
 import { AvisoActualizacionApk } from "@/components/AvisoActualizacionApk";
 import { DiloOrbe, type EstadoOrbe } from "@/components/DiloOrbe";
 import {
@@ -44,19 +44,6 @@ const GRUPOS_VOZ = [
   { id: "neutra" as const, titulo: "Neutra" },
 ];
 
-const CONSEJOS = [
-  "Pídeme que te recuerde algo a una hora.",
-  "Pregúntame qué tienes pendiente hoy.",
-  "Dime que anote una tarea.",
-  "Cuéntame cómo te fue el día. Te escucho.",
-  "Pídeme que agende una reunión.",
-  "Dime que marque algo como hecho.",
-  "Pregúntame qué recuerdos tengo de ti.",
-  "Pídeme un plan corto para la tarde.",
-  "Dime que te avise todos los días a la misma hora.",
-  "Pídeme que recuerde un dato importante.",
-];
-
 export function Dilo() {
   const { mensajes, enviarMensaje, configuracion, actualizarConfiguracion, pensando } =
     useAsistente();
@@ -66,7 +53,6 @@ export function Dilo() {
   const [transcribiendo, setTranscribiendo] = useState(false);
   const [hablando, setHablando] = useState(false);
   const [aviso, setAviso] = useState<string | null>(null);
-  const [dichoVivo, setDichoVivo] = useState("");
   const detenerRef = useRef<(() => Promise<{ blob: Blob; dicho: string }>) | null>(null);
   const cortandoRef = useRef(false);
   const hayMic = microfonoDisponible();
@@ -75,8 +61,6 @@ export function Dilo() {
   useEffect(() => {
     setEnAndroid(esCascaraAndroid());
   }, []);
-  const [indiceConsejo, setIndiceConsejo] = useState(0);
-  const [borrador, setBorrador] = useState("");
   const [enSesion, setEnSesion] = useState(false);
   const sesionRef = useRef(false);
   const grabandoRef = useRef(false);
@@ -87,8 +71,6 @@ export function Dilo() {
   const empezarEscuchaRef = useRef<() => Promise<void>>(async () => {});
 
   const visibles = mensajes.filter((m) => m.tipo !== "proceso" && m.tipo !== "analisis");
-  const ultimoAsistente = [...visibles].reverse().find((m) => m.autor === "asistente");
-  const hayConversacion = visibles.some((m) => m.autor === "usuario");
   const pila = nombreDePila(perfil?.nombre);
   const textoSaludo = pila
     ? `Hola, ${pila}. Estoy aquí. Cuéntame qué tienes entre manos.`
@@ -122,30 +104,6 @@ export function Dilo() {
         ? "hablando"
         : "espera";
 
-  useEffect(() => {
-    if (estado !== "espera") return;
-    const id = window.setInterval(() => {
-      setIndiceConsejo((i) => (i + 1) % CONSEJOS.length);
-    }, 5200);
-    return () => window.clearInterval(id);
-  }, [estado]);
-
-  const pie = useMemo(() => {
-    if (aviso) return aviso;
-    if (grabando) {
-      if (dichoVivo) return `“${dichoVivo}”`;
-      return "Habla cuando quieras. Al callar, sigo yo.";
-    }
-    if (transcribiendo || pensando) {
-      return dichoVivo ? `Te oí: “${dichoVivo}”` : "Lo estoy viendo…";
-    }
-    if (hablando && ultimoAsistente) return ultimoAsistente.texto;
-    if (enSesion) return "Sigo aquí…";
-    if (!hayMic) return "Este navegador no puede usar el micrófono. Prueba en Chrome.";
-    if (!hayConversacion) return textoSaludo;
-    return CONSEJOS[indiceConsejo] ?? CONSEJOS[0];
-  }, [aviso, dichoVivo, enSesion, grabando, hablando, hayConversacion, hayMic, indiceConsejo, pensando, textoSaludo, transcribiendo, ultimoAsistente]);
-
   const terminarGrabacion = async (origen: "auto" | "usuario") => {
     if (cortandoRef.current) return;
     cortandoRef.current = true;
@@ -174,7 +132,6 @@ export function Dilo() {
       const transcrito = deNavegador || deWhisper.texto;
       if (transcrito) {
         dichoRef.current = transcrito;
-        setDichoVivo(transcrito);
         setAviso(null);
         enviarMensaje(transcrito, "voz");
       } else if (deWhisper.cuota) {
@@ -211,7 +168,6 @@ export function Dilo() {
         },
         (texto) => {
           dichoRef.current = texto;
-          setDichoVivo(texto);
         },
         { continuo: true },
       );
@@ -222,7 +178,6 @@ export function Dilo() {
       detenerRef.current = rec.detener;
       cortandoRef.current = false;
       dichoRef.current = "";
-      setDichoVivo("");
       grabandoRef.current = true;
       setGrabando(true);
     } catch {
@@ -283,7 +238,6 @@ export function Dilo() {
     setEnSesion(true);
     setAviso(null);
     dichoRef.current = "";
-    setDichoVivo("");
     await desbloquearAudio();
     if (!entradaDichaRef.current && configuracion.preferenciaVoz && textoSaludo) {
       entradaDichaRef.current = true;
@@ -297,17 +251,6 @@ export function Dilo() {
     }
     if (!sesionRef.current) return;
     await empezarEscucha();
-  };
-
-  const enviarTexto = () => {
-    const limpio = borrador.trim();
-    if (!limpio || pensando || transcribiendo || grabando) return;
-    if (hablando) {
-      silenciar();
-      setHablando(false);
-    }
-    enviarMensaje(limpio, "texto");
-    setBorrador("");
   };
 
   const colorEstado =
@@ -365,52 +308,17 @@ export function Dilo() {
 
       <AvisoActualizacionApk compacto />
 
-      <div className="relative z-10 flex min-h-0 flex-1 flex-col px-6 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
-        <div className="flex min-h-0 flex-1 flex-col items-center justify-center">
-          <DiloOrbe estado={estado} onActivar={() => void pulsarOrbe()} />
-          <p
-            key={`estado-${estado}`}
-            className={`mt-7 text-[16px] font-medium ${colorEstado}`}
-            style={{ animation: "dilo-texto-entra 0.35s ease-out" }}
-          >
-            {ESTADO_TEXTO[estado]}
-          </p>
-          <p
-            key={grabando || transcribiendo || pensando || hablando ? "dilo-pie" : pie}
-            className={`mt-1.5 max-w-md text-center text-[13px] leading-5 ${
-              aviso || grabando ? "text-[#2563eb]" : "text-[#80868b]"
-            }`}
-            style={{ animation: "dilo-texto-entra 0.4s ease-out" }}
-          >
-            {pie}
-          </p>
-        </div>
-        <form
-          className="mx-auto mt-4 w-full max-w-md"
-          onSubmit={(e) => {
-            e.preventDefault();
-            enviarTexto();
-          }}
+      <div className="relative z-10 flex min-h-0 flex-1 flex-col items-center justify-center px-6 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
+        <DiloOrbe estado={estado} onActivar={() => void pulsarOrbe()} />
+        <p
+          key={aviso ?? `estado-${estado}`}
+          className={`mt-7 max-w-sm text-center text-[16px] font-medium ${
+            aviso ? "text-[#2563eb]" : colorEstado
+          }`}
+          style={{ animation: "dilo-texto-entra 0.35s ease-out" }}
         >
-          <label className="flex items-center gap-2 rounded-full bg-white/80 py-1.5 pl-4 pr-1.5 shadow-[0_1px_2px_rgb(60_64_67/0.12)] ring-1 ring-[#dadce0]/80 backdrop-blur-md">
-            <span className="sr-only">Escribe a Dilo</span>
-            <input
-              value={borrador}
-              onChange={(e) => setBorrador(e.target.value)}
-              placeholder={grabando ? "Habla, o toca el orbe para salir" : "O escribe aquí"}
-              disabled={pensando || transcribiendo || grabando}
-              className="min-w-0 flex-1 bg-transparent text-[15px] text-[#202124] outline-none placeholder:text-[#80868b] disabled:opacity-60"
-            />
-            <button
-              type="submit"
-              aria-label="Enviar"
-              disabled={!borrador.trim() || pensando || transcribiendo || grabando}
-              className="inline-flex size-9 shrink-0 items-center justify-center rounded-full bg-[#2563eb] text-white disabled:opacity-40"
-            >
-              <Send className="size-4" />
-            </button>
-          </label>
-        </form>
+          {aviso ?? (!hayMic ? "Este navegador no puede usar el micrófono." : ESTADO_TEXTO[estado])}
+        </p>
       </div>
     </div>
   );

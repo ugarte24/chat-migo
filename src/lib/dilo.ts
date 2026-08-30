@@ -51,6 +51,8 @@ export interface TurnoDilo {
   acciones: AccionDilo[];
 }
 
+export type EventoDilo = { tipo: "delta"; texto: string } | { tipo: "listo"; turno: TurnoDilo };
+
 function claveGemini() {
   return secreto("GEMINI_API_KEY");
 }
@@ -482,14 +484,24 @@ interface ParteGemini {
 }
 
 const MODELOS_GEMINI = [
-  "gemini-3.7-flash",
-  "gemini-3.5-flash",
   "gemini-2.5-flash",
+  "gemini-3.5-flash",
+  "gemini-3.7-flash",
   "gemini-flash-latest",
   "gemini-3.6-flash",
 ];
 
 type ContenidoGemini = { role: string; parts: ParteGemini[] };
+
+function cuerpoGemini(contents: ContenidoGemini[], contexto: ContextoDilo) {
+  return JSON.stringify({
+    systemInstruction: { parts: [{ text: sistema(contexto) }] },
+    contents,
+    tools: [{ functionDeclarations: declaracionesGemini() }],
+    toolConfig: { functionCallingConfig: { mode: "AUTO" } },
+    generationConfig: { temperature: 0.65 },
+  });
+}
 
 async function pedirGemini(modelo: string, clave: string, contents: ContenidoGemini[], contexto: ContextoDilo) {
   return fetch(`https://generativelanguage.googleapis.com/v1beta/models/${modelo}:generateContent`, {
@@ -498,26 +510,142 @@ async function pedirGemini(modelo: string, clave: string, contents: ContenidoGem
       "Content-Type": "application/json",
       "x-goog-api-key": clave,
     },
-    signal: AbortSignal.timeout(18_000),
-    body: JSON.stringify({
-      systemInstruction: { parts: [{ text: sistema(contexto) }] },
-      contents,
-      tools: [{ functionDeclarations: declaracionesGemini() }],
-      toolConfig: { functionCallingConfig: { mode: "AUTO" } },
-      generationConfig: { temperature: 0.65 },
-    }),
+    signal: AbortSignal.timeout(14_000),
+    body: cuerpoGemini(contents, contexto),
   });
+}
+
+async function pedirGeminiFlujo(modelo: string, clave: string, contents: ContenidoGemini[], contexto: ContextoDilo) {
+  return fetch(
+    `https://generativelanguage.googleapis.com/v1beta/models/${modelo}:streamGenerateContent?alt=sse`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-goog-api-key": clave,
+      },
+      signal: AbortSignal.timeout(4_000),
+      body: cuerpoGemini(contents, contexto),
+    },
+  );
+}
+
+async function* datosSse(res: Response): AsyncGenerator<string> {
+  const lector = res.body?.getReader();
+  if (!lector) return;
+  const dec = new TextDecoder();
+  let buf = "";
+  while (true) {
+    const { done, value } = await lector.read();
+    if (done) break;
+    buf += dec.decode(value, { stream: true }).replace(/\r\n/g, "\n");
+    let corte = buf.indexOf("\n\n");
+    while (corte >= 0) {
+      const bloque = buf.slice(0, corte);
+      buf = buf.slice(corte + 2);
+      for (const linea of bloque.split("\n")) {
+        const t = linea.trim();
+        if (t.startsWith("data:")) {
+          const dato = t.slice(5).trim();
+          if (dato) yield dato;
+        }
+      }
+      corte = buf.indexOf("\n\n");
+    }
+  }
+  const resto = buf.trim();
+  if (resto.startsWith("data:")) {
+    const dato = resto.slice(5).trim();
+    if (dato) yield dato;
+  }
 }
 
 function partesGemini(cuerpo: { candidates?: { content?: { parts?: ParteGemini[] } }[] }) {
   return cuerpo.candidates?.[0]?.content?.parts ?? [];
 }
 
-async function conversarConGemini(
+async function* emitirPorPalabras(texto: string): AsyncGenerator<EventoDilo> {
+  const trozos = texto.split(/(\s+)/).filter((t) => t.length > 0);
+  for (const t of trozos) {
+    yield { tipo: "delta", texto: t };
+    await new Promise((r) => setTimeout(r, 16));
+  }
+}
+
+async function* fluirGeminiUna(
+  modelo: string,
+  clave: string,
+  contents: ContenidoGemini[],
+  contexto: ContextoDilo,
+): AsyncGenerator<EventoDilo, { partes: ParteGemini[]; texto: string } | null> {
+  try {
+    const respuesta = await pedirGeminiFlujo(modelo, clave, contents, contexto);
+    if (respuesta.status === 404) return null;
+    if (respuesta.ok) {
+      const partes: ParteGemini[] = [];
+      let texto = "";
+      for await (const dato of datosSse(respuesta)) {
+        if (dato === "[DONE]") continue;
+        let cuerpo: { candidates?: { content?: { parts?: ParteGemini[] } }[] };
+        try {
+          cuerpo = JSON.parse(dato) as typeof cuerpo;
+        } catch {
+          continue;
+        }
+        for (const parte of partesGemini(cuerpo)) {
+          partes.push(parte);
+          if (parte.text) {
+            const nuevo = parte.text;
+            if (nuevo.startsWith(texto)) {
+              const extra = nuevo.slice(texto.length);
+              texto = nuevo;
+              if (extra) yield { tipo: "delta", texto: extra };
+            } else {
+              texto += nuevo;
+              yield { tipo: "delta", texto: nuevo };
+            }
+          }
+        }
+      }
+      if (texto || partes.some((p) => p.functionCall?.name)) return { partes, texto };
+    } else {
+      const detalle = await respuesta.text().catch(() => "");
+      console.error("gemini", modelo, respuesta.status, detalle.slice(0, 240));
+      if (respuesta.status !== 400 && respuesta.status !== 429 && respuesta.status < 500) {
+        return { partes: [], texto: "" };
+      }
+    }
+  } catch (error) {
+    console.error("gemini stream", modelo, error);
+  }
+
+  try {
+    const respuesta = await pedirGemini(modelo, clave, contents, contexto);
+    if (respuesta.status === 404) return null;
+    if (!respuesta.ok) {
+      const detalle = await respuesta.text().catch(() => "");
+      console.error("gemini", modelo, respuesta.status, detalle.slice(0, 240));
+      if (respuesta.status === 400 || respuesta.status === 429 || respuesta.status >= 500) return null;
+      return { partes: [], texto: "" };
+    }
+    const cuerpo = (await respuesta.json()) as {
+      candidates?: { content?: { parts?: ParteGemini[] } }[];
+    };
+    const partes = partesGemini(cuerpo);
+    const texto = partes.map((p) => p.text ?? "").join("");
+    if (texto) yield* emitirPorPalabras(texto);
+    return { partes, texto };
+  } catch (error) {
+    console.error("gemini", modelo, error);
+    return null;
+  }
+}
+
+async function* fluirGemini(
   mensaje: string,
   historial: MensajeDilo[],
   contexto: ContextoDilo,
-): Promise<TurnoDilo> {
+): AsyncGenerator<EventoDilo, TurnoDilo> {
   const clave = claveGemini();
   if (!clave) return { texto: "", acciones: [] };
 
@@ -529,28 +657,26 @@ async function conversarConGemini(
     { role: "user", parts: [{ text: mensaje }] },
   ];
 
-  const acciones: AccionDilo[] = [];
-
   for (const modelo of MODELOS_GEMINI) {
     try {
-      const respuesta = await pedirGemini(modelo, clave, contents, contexto);
-      if (respuesta.status === 404) continue;
-      if (!respuesta.ok) {
-        const detalle = await respuesta.text().catch(() => "");
-        console.error("gemini", modelo, respuesta.status, detalle.slice(0, 240));
-        if (respuesta.status === 400 || respuesta.status === 429 || respuesta.status >= 500) continue;
-        return { texto: "", acciones };
+      const acciones: AccionDilo[] = [];
+      const gen = fluirGeminiUna(modelo, clave, contents, contexto);
+      let primero: { partes: ParteGemini[]; texto: string } | null = null;
+      while (true) {
+        const paso = await gen.next();
+        if (paso.done) {
+          primero = paso.value;
+          break;
+        }
+        yield paso.value;
       }
-      const cuerpo = (await respuesta.json()) as {
-        candidates?: { content?: { parts?: ParteGemini[] } }[];
-      };
-      const partes = partesGemini(cuerpo);
-      let hablado = "";
+      if (!primero) continue;
+      if (!primero.texto && !primero.partes.some((p) => p.functionCall?.name)) continue;
+
+      let hablado = primero.texto;
       let consultoAgenda = false;
       const llamadas: { name: string; args: Record<string, unknown>; resultado: string }[] = [];
-
-      for (const parte of partes) {
-        if (parte.text?.trim()) hablado = `${hablado} ${parte.text.trim()}`.trim();
+      for (const parte of primero.partes) {
         const llamada = parte.functionCall;
         if (!llamada?.name) continue;
         if (llamada.name === "consultar_agenda") consultoAgenda = true;
@@ -559,12 +685,12 @@ async function conversarConGemini(
       }
 
       if (llamadas.length > 0) {
-        const segunda = await pedirGemini(
+        const segunda = fluirGeminiUna(
           modelo,
           clave,
           [
             ...contents,
-            { role: "model", parts },
+            { role: "model", parts: primero.partes },
             {
               role: "user",
               parts: llamadas.map((l) => ({
@@ -577,27 +703,172 @@ async function conversarConGemini(
           ],
           contexto,
         );
-        if (segunda.ok) {
-          const seguimiento = (await segunda.json()) as {
-            candidates?: { content?: { parts?: ParteGemini[] } }[];
-          };
-          const textos = partesGemini(seguimiento)
-            .map((p) => p.text?.trim() ?? "")
-            .filter(Boolean);
-          if (textos.length) hablado = textos.join(" ");
+        while (true) {
+          const paso = await segunda.next();
+          if (paso.done) {
+            if (paso.value?.texto) hablado = paso.value.texto;
+            break;
+          }
+          yield paso.value;
         }
       }
 
-      return {
+      const turno: TurnoDilo = {
         texto: paraVoz(hablado || confirmarAcciones(acciones, contexto, consultoAgenda)),
         acciones,
       };
+      yield { tipo: "listo", turno };
+      return turno;
     } catch (error) {
       console.error("gemini", modelo, error);
-      continue;
     }
   }
-  return { texto: "", acciones };
+  return { texto: "", acciones: [] };
+}
+
+async function* fluirOpenAi(
+  mensaje: string,
+  historial: MensajeDilo[],
+  contexto: ContextoDilo,
+): AsyncGenerator<EventoDilo, TurnoDilo> {
+  const clave = claveOpenAi();
+  if (clave.length < 10) return { texto: "", acciones: [] };
+
+  const mensajes: MensajeApi[] = [
+    { role: "system", content: sistema(contexto) },
+    ...historial.slice(-12).map((m) => ({ role: m.role, content: m.content })),
+    { role: "user", content: mensaje },
+  ];
+  const acciones: AccionDilo[] = [];
+
+  const leer = async (cuerpo: Record<string, unknown>) => {
+    const respuesta = await fetch("https://api.openai.com/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${clave}`,
+        "Content-Type": "application/json",
+      },
+      signal: AbortSignal.timeout(24_000),
+      body: JSON.stringify({ ...cuerpo, stream: true }),
+    });
+    return respuesta;
+  };
+
+  try {
+    const respuesta = await leer({
+      model: "gpt-4o-mini",
+      temperature: 0.65,
+      tools: HERRAMIENTAS,
+      tool_choice: "auto",
+      messages: mensajes,
+    });
+    if (!respuesta.ok) return { texto: "", acciones };
+
+    let hablado = "";
+    const tools: { id: string; name: string; arguments: string }[] = [];
+    for await (const dato of datosSse(respuesta)) {
+      if (dato === "[DONE]") break;
+      let json: {
+        choices?: {
+          delta?: {
+            content?: string | null;
+            tool_calls?: { index: number; id?: string; function?: { name?: string; arguments?: string } }[];
+          };
+        }[];
+      };
+      try {
+        json = JSON.parse(dato) as typeof json;
+      } catch {
+        continue;
+      }
+      const delta = json.choices?.[0]?.delta;
+      if (delta?.content) {
+        hablado += delta.content;
+        yield { tipo: "delta", texto: delta.content };
+      }
+      for (const llamada of delta?.tool_calls ?? []) {
+        const i = llamada.index;
+        const actual = tools[i] ?? { id: "", name: "", arguments: "" };
+        if (llamada.id) actual.id = llamada.id;
+        if (llamada.function?.name) actual.name = llamada.function.name;
+        if (llamada.function?.arguments) actual.arguments += llamada.function.arguments;
+        tools[i] = actual;
+      }
+    }
+
+    let consultoAgenda = false;
+    if (tools.length > 0) {
+      for (const llamada of tools) {
+        let args: Record<string, unknown> = {};
+        try {
+          args = JSON.parse(llamada.arguments || "{}") as Record<string, unknown>;
+        } catch {
+          args = {};
+        }
+        if (llamada.name === "consultar_agenda") consultoAgenda = true;
+        ejecutarHerramienta(llamada.name, args, contexto, acciones);
+      }
+    }
+
+    const turno: TurnoDilo = {
+      texto: paraVoz(hablado || confirmarAcciones(acciones, contexto, consultoAgenda)),
+      acciones,
+    };
+    yield { tipo: "listo", turno };
+    return turno;
+  } catch {
+    return { texto: "", acciones };
+  }
+}
+
+export async function* fluirDilo(
+  mensaje: string,
+  historial: MensajeDilo[],
+  contexto: ContextoDilo,
+): AsyncGenerator<EventoDilo> {
+  if (geminiConfigurado()) {
+    const gen = fluirGemini(mensaje, historial, contexto);
+    while (true) {
+      const paso = await gen.next();
+      if (paso.done) {
+        if (paso.value.texto || paso.value.acciones.length > 0) return;
+        break;
+      }
+      yield paso.value;
+      if (paso.value.tipo === "listo") return;
+    }
+  }
+
+  const genGpt = fluirOpenAi(mensaje, historial, contexto);
+  while (true) {
+    const paso = await genGpt.next();
+    if (paso.done) {
+      if (paso.value.texto || paso.value.acciones.length > 0) {
+        if (paso.value.texto) yield { tipo: "delta", texto: paso.value.texto };
+        yield { tipo: "listo", turno: paso.value };
+        return;
+      }
+      break;
+    }
+    yield paso.value;
+    if (paso.value.tipo === "listo") return;
+  }
+
+  const local = turnoLocal(mensaje, contexto);
+  if (local.texto) yield { tipo: "delta", texto: local.texto };
+  yield { tipo: "listo", turno: local };
+}
+
+export async function conversarConDilo(
+  mensaje: string,
+  historial: MensajeDilo[],
+  contexto: ContextoDilo,
+): Promise<TurnoDilo> {
+  let turno: TurnoDilo = { texto: "", acciones: [] };
+  for await (const ev of fluirDilo(mensaje, historial, contexto)) {
+    if (ev.tipo === "listo") turno = ev.turno;
+  }
+  return turno.texto || turno.acciones.length > 0 ? turno : turnoLocal(mensaje, contexto);
 }
 
 export function turnoLocal(mensaje: string, contexto: ContextoDilo): TurnoDilo {
@@ -736,78 +1007,4 @@ function cierreAgenda(ctx: ContextoDilo) {
   if (recs > 0 && tareas > 0) return `Hoy tienes ${tareas} ${tareas === 1 ? "tarea" : "tareas"} y ${recs} ${recs === 1 ? "recordatorio" : "recordatorios"}.`;
   if (recs > 0) return `Hoy tienes ${recs} ${recs === 1 ? "recordatorio" : "recordatorios"}.`;
   return `Tienes ${tareas} ${tareas === 1 ? "tarea pendiente" : "tareas pendientes"}.`;
-}
-
-export async function conversarConDilo(
-  mensaje: string,
-  historial: MensajeDilo[],
-  contexto: ContextoDilo,
-): Promise<TurnoDilo> {
-  if (geminiConfigurado()) {
-    const turno = await conversarConGemini(mensaje, historial, contexto);
-    if (turno.texto || turno.acciones.length > 0) return turno;
-  }
-
-  const clave = claveOpenAi();
-  if (clave.length >= 10) {
-    const mensajes: MensajeApi[] = [
-      { role: "system", content: sistema(contexto) },
-      ...historial.slice(-12).map((m) => ({ role: m.role, content: m.content })),
-      { role: "user", content: mensaje },
-    ];
-
-    const acciones: AccionDilo[] = [];
-
-    try {
-      const respuesta = await fetch("https://api.openai.com/v1/chat/completions", {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${clave}`,
-          "Content-Type": "application/json",
-        },
-        signal: AbortSignal.timeout(12_000),
-        body: JSON.stringify({
-          model: "gpt-4o-mini",
-          temperature: 0.65,
-          tools: HERRAMIENTAS,
-          tool_choice: "auto",
-          messages: mensajes,
-        }),
-      });
-      if (respuesta.ok) {
-        const cuerpo = (await respuesta.json()) as {
-          choices?: { message?: MensajeApi }[];
-        };
-        const msg = cuerpo.choices?.[0]?.message;
-        if (msg) {
-          const llamadas = msg.tool_calls ?? [];
-          if (llamadas.length === 0) {
-            const hablado = (msg.content ?? "").trim();
-            if (hablado) return { texto: hablado, acciones };
-          } else {
-            let consultoAgenda = false;
-            for (const llamada of llamadas) {
-              let args: Record<string, unknown> = {};
-              try {
-                args = JSON.parse(llamada.function.arguments || "{}") as Record<string, unknown>;
-              } catch {
-                args = {};
-              }
-              if (llamada.function.name === "consultar_agenda") consultoAgenda = true;
-              ejecutarHerramienta(llamada.function.name, args, contexto, acciones);
-            }
-            const hablado = (msg.content ?? "").trim();
-            return {
-              texto: hablado || confirmarAcciones(acciones, contexto, consultoAgenda),
-              acciones,
-            };
-          }
-        }
-      }
-    } catch {
-      /* cae al turno local */
-    }
-  }
-
-  return turnoLocal(mensaje, contexto);
 }

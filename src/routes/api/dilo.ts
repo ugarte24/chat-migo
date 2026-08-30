@@ -1,5 +1,5 @@
-import { createFileRoute } from '@tanstack/react-router'
-import { conversarConDilo, type ContextoDilo, type MensajeDilo } from "@/lib/dilo";
+import { createFileRoute } from "@tanstack/react-router";
+import { fluirDilo, type ContextoDilo, type MensajeDilo } from "@/lib/dilo";
 
 export const Route = createFileRoute("/api/dilo")({
   server: {
@@ -11,11 +11,46 @@ export const Route = createFileRoute("/api/dilo")({
           contexto?: ContextoDilo;
         } | null;
         const mensaje = cuerpo?.mensaje?.trim() ?? "";
-        if (!mensaje || !cuerpo?.contexto) {
+        const contexto = cuerpo?.contexto;
+        if (!mensaje || !contexto) {
           return Response.json({ error: "Falta el mensaje" }, { status: 400 });
         }
-        const turno = await conversarConDilo(mensaje, cuerpo.historial ?? [], cuerpo.contexto);
-        return Response.json(turno);
+        const historial = cuerpo?.historial ?? [];
+        const encoder = new TextEncoder();
+        const stream = new ReadableStream({
+          async start(controller) {
+            const enviar = (dato: unknown) => {
+              try {
+                controller.enqueue(encoder.encode(`data: ${JSON.stringify(dato)}\n\n`));
+              } catch {
+                /* el cliente cerró el stream */
+              }
+            };
+            try {
+              for await (const ev of fluirDilo(mensaje, historial, contexto)) {
+                enviar(ev);
+              }
+            } catch (error) {
+              console.error("dilo stream", error);
+              enviar({
+                tipo: "listo",
+                turno: { texto: "No pude responder ahora. Intenta otra vez.", acciones: [] },
+              });
+            }
+            try {
+              controller.close();
+            } catch {
+              /* ya cerrado */
+            }
+          },
+        });
+        return new Response(stream, {
+          headers: {
+            "Content-Type": "text/event-stream; charset=utf-8",
+            "Cache-Control": "no-store",
+            "X-Accel-Buffering": "no",
+          },
+        });
       },
     },
   },

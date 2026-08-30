@@ -24,7 +24,14 @@ import {
   type Recordatorio,
   type Tarea,
 } from "./datos";
-import { turnoLocal, type AccionDilo, type ContextoDilo, type MensajeDilo, type TurnoDilo } from "./dilo";
+import {
+  turnoLocal,
+  type AccionDilo,
+  type ContextoDilo,
+  type EventoDilo,
+  type MensajeDilo,
+  type TurnoDilo,
+} from "./dilo";
 import { fetchConTiempo, nombreDePila } from "./utils";
 import { avisosPendientes, buscarUno } from "./motor";
 import {
@@ -47,7 +54,16 @@ import {
   type EstadoPersistencia,
 } from "./repositorio";
 import { supabaseConfigurado } from "./supabase";
-import { hablar } from "./voz";
+import {
+  abrirTurnoVoz,
+  cerrarTurnoVoz,
+  decir,
+  encolarHabla,
+  extraerFrasesVoz,
+  hablar,
+  prefetchHablar,
+  silenciar,
+} from "./voz";
 import { VOZ_DEFECTO_ID } from "./voces";
 
 export type { ConfiguracionUsuario, MensajeChat };
@@ -115,6 +131,7 @@ async function pedirTurnoDilo(
   mensaje: string,
   historial: MensajeDilo[],
   contexto: ContextoDilo,
+  alDelta?: (texto: string) => void,
 ): Promise<TurnoDilo | null> {
   try {
     const res = await fetchConTiempo(
@@ -124,10 +141,46 @@ async function pedirTurnoDilo(
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ mensaje, historial, contexto }),
       },
-      22_000,
+      45_000,
     );
     if (!res.ok) return null;
-    return (await res.json()) as TurnoDilo;
+    const tipo = res.headers.get("content-type") ?? "";
+    if (tipo.includes("application/json")) {
+      return (await res.json()) as TurnoDilo;
+    }
+    if (!res.body) return null;
+    const lector = res.body.getReader();
+    const dec = new TextDecoder();
+    let buf = "";
+    let turno: TurnoDilo | null = null;
+    const aplicar = (bloque: string) => {
+      for (const linea of bloque.split("\n")) {
+        const t = linea.trim();
+        if (!t.startsWith("data:")) continue;
+        const dato = t.slice(5).trim();
+        if (!dato) continue;
+        try {
+          const ev = JSON.parse(dato) as EventoDilo;
+          if (ev.tipo === "delta") alDelta?.(ev.texto);
+          if (ev.tipo === "listo") turno = ev.turno;
+        } catch {
+          /* trozo incompleto */
+        }
+      }
+    };
+    while (true) {
+      const { done, value } = await lector.read();
+      if (done) break;
+      buf += dec.decode(value, { stream: true }).replace(/\r\n/g, "\n");
+      let corte = buf.indexOf("\n\n");
+      while (corte >= 0) {
+        aplicar(buf.slice(0, corte));
+        buf = buf.slice(corte + 2);
+        corte = buf.indexOf("\n\n");
+      }
+    }
+    if (buf.trim()) aplicar(buf);
+    return turno;
   } catch {
     return null;
   }
@@ -237,7 +290,7 @@ export function AsistenteProvider({ children }: { children: ReactNode }) {
         item.tipo === "aclaracion" ||
         item.tipo === "error")
     ) {
-      hablar(item.texto, cfgRef.current.vozId);
+      decir(item.texto, cfgRef.current.vozId);
     }
   }, []);
 
@@ -854,6 +907,8 @@ export function AsistenteProvider({ children }: { children: ReactNode }) {
         ...(tipo === "voz" ? { transcripcion: texto } : {}),
       });
       setPensando(true);
+      if (cfgRef.current.preferenciaVoz) abrirTurnoVoz();
+      else silenciar();
 
       void (async () => {
         const snap = snapshot.current;
@@ -898,28 +953,88 @@ export function AsistenteProvider({ children }: { children: ReactNode }) {
           })),
         };
         const historial: MensajeDilo[] = mensajesRef.current
-          .filter((m) => m.tipo !== "proceso" && m.tipo !== "analisis")
+          .filter((m) => m.tipo !== "proceso" && m.tipo !== "analisis" && !m.enCurso)
           .slice(-12)
           .map((m) => ({
             role: m.autor === "usuario" ? "user" : "assistant",
             content: m.texto,
           }));
 
+        const idBurbuja = nuevoId();
+        const hora = horaAhora();
+        const creadoEn = new Date().toISOString();
+        setMensajes((p) => [
+          ...p,
+          {
+            id: idBurbuja,
+            autor: "asistente",
+            texto: "",
+            tipo: "texto",
+            hora,
+            creadoEn,
+            enCurso: true,
+          },
+        ]);
+
         try {
-          const turno = (await pedirTurnoDilo(texto, historial, contexto)) ?? turnoLocal(texto, contexto);
+          let vivo = "";
+          let pendienteVoz = "";
+          let yaHablo = false;
+          const soltarFrases = (forzar: boolean) => {
+            if (!cfgRef.current.preferenciaVoz) return;
+            const { listas, resto } = extraerFrasesVoz(pendienteVoz, forzar);
+            pendienteVoz = resto;
+            const vozId = cfgRef.current.vozId;
+            listas.forEach((frase) => {
+              if (yaHablo) void prefetchHablar(frase, vozId);
+              encolarHabla(frase, vozId);
+              if (!yaHablo) {
+                yaHablo = true;
+                setPensando(false);
+              }
+            });
+          };
+          const turno =
+            (await pedirTurnoDilo(texto, historial, contexto, (delta) => {
+              vivo += delta;
+              pendienteVoz += delta;
+              const copia = vivo;
+              setMensajes((p) => p.map((m) => (m.id === idBurbuja ? { ...m, texto: copia } : m)));
+              soltarFrases(false);
+            })) ?? turnoLocal(texto, contexto);
+          if (!vivo && turno.texto) pendienteVoz = turno.texto;
+          soltarFrases(true);
           if (turno.acciones.length > 0) aplicarAcciones(turno.acciones, texto);
-          push({
-            autor: "asistente",
-            texto: turno.texto || "Te escucho. Dime cómo sigo.",
-            tipo: turno.acciones.length > 0 ? "confirmacion" : "texto",
-          });
+          const final = turno.texto || vivo || "Te escucho. Dime cómo sigo.";
+          const tipoMsg = turno.acciones.length > 0 ? ("confirmacion" as const) : ("texto" as const);
+          setMensajes((p) =>
+            p.map((m) =>
+              m.id === idBurbuja ? { ...m, texto: final, tipo: tipoMsg, enCurso: false } : m,
+            ),
+          );
+          void guardarMensaje(
+            { id: idBurbuja, autor: "asistente", texto: final, tipo: tipoMsg, hora, creadoEn },
+            uidRef.current,
+          );
         } catch {
-          push({
-            autor: "asistente",
-            texto: "No pude responder ahora. Intenta otra vez o escribe el mensaje.",
-            tipo: "error",
-          });
+          silenciar();
+          setMensajes((p) =>
+            p.map((m) =>
+              m.id === idBurbuja
+                ? {
+                    ...m,
+                    texto: "No pude responder ahora. Intenta otra vez o escribe el mensaje.",
+                    tipo: "error",
+                    enCurso: false,
+                  }
+                : m,
+            ),
+          );
+          if (cfgRef.current.preferenciaVoz) {
+            void hablar("No pude responder ahora. Intenta otra vez o escribe el mensaje.", cfgRef.current.vozId);
+          }
         } finally {
+          cerrarTurnoVoz();
           setPensando(false);
         }
       })();
