@@ -944,15 +944,11 @@ async function hablarEnNavegador(texto: string) {
   const pararLatido = latidoSimulado();
   await new Promise<void>((resolve) => {
     const utterance = new SpeechSynthesisUtterance(texto);
-    utterance.lang = "es-VE";
-    utterance.rate = 1.04;
+    const voz = elegirVozNavegador();
+    utterance.lang = voz?.lang || "es-MX";
+    utterance.rate = 0.98;
     utterance.pitch = 1;
     utterance.volume = 1;
-    const voces = window.speechSynthesis.getVoices();
-    const voz =
-      voces.find((v) => v.lang.toLowerCase().startsWith("es-ve")) ||
-      voces.find((v) => v.lang.toLowerCase().startsWith("es-mx")) ||
-      voces.find((v) => v.lang.toLowerCase().startsWith("es"));
     if (voz) utterance.voice = voz;
     const listo = () => resolve();
     utterance.onend = listo;
@@ -961,6 +957,31 @@ async function hablarEnNavegador(texto: string) {
     window.setTimeout(listo, Math.min(12_000, texto.length * 90 + 1_800));
   });
   pararLatido();
+}
+
+function elegirVozNavegador(): SpeechSynthesisVoice | undefined {
+  const voces = window.speechSynthesis.getVoices();
+  const es = voces.filter((v) => v.lang.toLowerCase().startsWith("es"));
+  const lista = es.length > 0 ? es : voces;
+  if (lista.length === 0) return undefined;
+
+  const puntos = (v: SpeechSynthesisVoice) => {
+    const n = `${v.name} ${v.voiceURI} ${v.lang}`.toLowerCase();
+    const lang = v.lang.toLowerCase();
+    let p = 0;
+    if (n.includes("natural") || n.includes("neural")) p += 80;
+    if (n.includes("google")) p += 70;
+    if (n.includes("online")) p += 50;
+    if (n.includes("premium") || n.includes("enhanced")) p += 40;
+    if (n.includes("desktop") || n.includes("sapi")) p -= 80;
+    if (n.includes("microsoft") && !n.includes("natural") && !n.includes("online")) p -= 40;
+    if (lang.startsWith("es-mx") || lang.startsWith("es-us") || lang.startsWith("es-419")) p += 14;
+    if (lang.startsWith("es-ve") || lang.startsWith("es-co") || lang.startsWith("es-ar")) p += 12;
+    if (lang.startsWith("es-es")) p += 6;
+    return p;
+  };
+
+  return [...lista].sort((a, b) => puntos(b) - puntos(a))[0];
 }
 
 export function silenciar() {

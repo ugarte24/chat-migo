@@ -134,9 +134,8 @@ function envServidor(clave: "ELEVENLABS_API_KEY" | "ELEVENLABS_VOICE_ID") {
 export const VOZ_ELEVENLABS_ID = VOZ_DEFECTO_ID;
 
 export function vozElevenLabsId(pedida?: string) {
-  if (esVozGratis(pedida)) return pedida!;
-  const env = envServidor("ELEVENLABS_VOICE_ID");
-  return vozResuelta(env);
+  if (esVozGratis(pedida)) return vozResuelta(pedida);
+  return vozResuelta(envServidor("ELEVENLABS_VOICE_ID"));
 }
 
 export function elevenLabsConfigurado() {

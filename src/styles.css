@@ -270,303 +270,310 @@ html {
   scroll-padding-top: 5.5rem;
 }
 
-/* Orbe Dilo: esfera de cristal estable. */
-.dilo-orbe {
-  width: 58%;
-  height: 58%;
-  border-radius: 50%;
-  overflow: hidden;
+/* Núcleo de voz Dilo */
+.dilo-core {
+  position: relative;
+  display: grid;
+  width: min(96vw, 26rem);
+  height: min(78vw, 15.25rem);
+  place-items: center;
+  overflow: visible;
+  background: transparent;
   isolation: isolate;
-  background:
-    radial-gradient(circle at 30% 22%, #ffffff 0 7%, transparent 24%),
-    radial-gradient(ellipse 80% 55% at 34% 26%, rgb(224 247 255 / 0.95) 0%, transparent 42%),
-    radial-gradient(circle at 72% 30%, rgb(34 211 238 / 0.6) 0 18%, transparent 46%),
-    radial-gradient(circle at 50% 86%, rgb(6 182 212 / 0.78) 0 20%, transparent 46%),
-    radial-gradient(circle at 48% 46%, #ffffff 0%, #a5f3fc 14%, #00e5ff 34%, #22d3ee 54%, #2563eb 82%, #1e3a8a 100%);
-  box-shadow:
-    inset 0 -30px 42px rgb(15 23 42 / 0.42),
-    inset 0 16px 24px rgb(255 255 255 / 0.32),
-    inset -12px -10px 28px rgb(30 64 175 / 0.32),
-    0 0 0 1px rgb(255 255 255 / 0.4),
-    0 10px 20px rgb(37 99 235 / 0.16),
-    0 36px 72px -18px rgb(37 99 235 / 0.58);
-  animation: dilo-orbe-pulso 8s ease-in-out infinite;
-  transition: transform 0.45s ease, filter 0.45s ease, box-shadow 0.45s ease;
 }
 
-.dilo-orbe-caustica {
-  pointer-events: none;
-  position: absolute;
-  left: 18%;
-  right: 18%;
-  bottom: 8%;
-  height: 38%;
-  border-radius: 50%;
-  background: radial-gradient(ellipse at 50% 0%, rgb(125 211 252 / 0.55), transparent 70%);
-  mix-blend-mode: screen;
-  opacity: 0.7;
-}
-
-.dilo-orbe-sheen {
-  pointer-events: none;
-  position: absolute;
-  inset: -40%;
-  background: conic-gradient(
-    from 200deg,
-    transparent 0 72%,
-    rgb(255 255 255 / 0.16) 78%,
-    transparent 86%
-  );
-  animation: dilo-orbe-giro 26s linear infinite;
-}
-
-.dilo-orbe-nucleo {
-  pointer-events: none;
-  position: absolute;
-  inset: 30%;
-  border-radius: 50%;
-  background: radial-gradient(circle, #ffffff 0 16%, rgb(165 243 252 / 0.95) 34%, rgb(0 229 255 / 0.4) 58%, transparent 74%);
-  filter: blur(0.4px);
-  animation: dilo-nucleo-espera 4.4s ease-in-out infinite;
-}
-
-.dilo-orbe-onda {
-  pointer-events: none;
-  position: absolute;
-  inset: 24%;
-  border-radius: 50%;
-  border: 1.5px solid transparent;
-  opacity: 0;
-}
-
-.dilo-orbe-eco {
-  pointer-events: none;
-  position: absolute;
-  inset: 21%;
+.dilo-core-escena {
+  position: relative;
   z-index: 2;
-  border-radius: 50%;
-  border: 2px solid rgb(0 229 255 / 0.65);
-  box-shadow: 0 0 18px rgb(34 211 238 / 0.45);
-  animation: dilo-orbe-eco 0.55s ease-out forwards;
+  display: grid;
+  width: min(78vw, 15.25rem);
+  height: min(78vw, 15.25rem);
+  place-items: center;
+  overflow: visible;
 }
 
-.dilo-orbe-destello {
+.dilo-core-fondo {
   pointer-events: none;
   position: absolute;
-  top: 12%;
-  left: 16%;
-  width: 32%;
-  height: 18%;
+  inset: 18%;
   border-radius: 50%;
-  background: linear-gradient(180deg, rgb(255 255 255 / 0.92), rgb(255 255 255 / 0.15));
-  filter: blur(1.2px);
-  transform: rotate(-18deg);
+  background: radial-gradient(circle, rgb(255 255 255 / 0.9) 0%, rgb(239 246 255 / 0.35) 46%, transparent 72%);
 }
 
-.dilo-orbe-destello-fino {
-  pointer-events: none;
-  position: absolute;
-  top: 22%;
-  left: 22%;
-  width: 8%;
-  height: 6%;
-  border-radius: 50%;
-  background: rgb(255 255 255 / 0.95);
-  filter: blur(0.4px);
-}
-
-.dilo-orbe-rim {
+.dilo-core-anillos {
   pointer-events: none;
   position: absolute;
   inset: 0;
-  border-radius: 50%;
-  box-shadow: inset 0 0 0 1.5px rgb(255 255 255 / 0.42);
+  overflow: visible;
+  stroke: rgb(148 163 184 / 0.34);
+  stroke-width: 0.65;
 }
 
-.dilo-halo {
+.dilo-core-anillos circle:nth-child(1) {
+  stroke: rgb(148 163 184 / 0.4);
+}
+
+.dilo-core-anillos circle:nth-child(2) {
+  stroke: rgb(148 163 184 / 0.3);
+}
+
+.dilo-core-anillos circle:nth-child(3) {
+  stroke: rgb(148 163 184 / 0.22);
+}
+
+.dilo-core-anillos circle:nth-child(4) {
+  stroke: rgb(148 163 184 / 0.16);
+}
+
+.dilo-core-anillos circle:nth-child(5) {
+  stroke: rgb(148 163 184 / 0.1);
+}
+
+.dilo-core-anillos circle:nth-child(6) {
+  stroke: rgb(148 163 184 / 0.06);
+}
+
+.dilo-core-halo {
   pointer-events: none;
   position: absolute;
-  inset: 10%;
+  inset: 0;
+  width: 7.35rem;
+  height: 7.35rem;
+  margin: auto;
   border-radius: 50%;
-  background: radial-gradient(circle, rgb(14 165 233 / 0.2), transparent 68%);
-  animation: dilo-halo-espera 5s ease-in-out infinite;
+  background: radial-gradient(circle, rgb(255 255 255) 40%, rgb(219 234 254 / 0.85) 58%, transparent 74%);
+  animation: dilo-halo-espera 6s ease-in-out infinite;
 }
 
-.dilo-anillo {
+.dilo-core-puntos {
   pointer-events: none;
   position: absolute;
-  inset: 14%;
+  inset: 0;
+  width: 8.55rem;
+  height: 8.55rem;
+  margin: auto;
+  color: rgb(255 255 255);
+  filter: drop-shadow(0 0 2px rgb(147 197 253 / 0.9));
+  transform-origin: center;
+  animation: dilo-anillo-giro 42s linear infinite;
+}
+
+.dilo-core-ondas {
+  pointer-events: none;
+  position: absolute;
+  top: 50%;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  gap: 3.5px;
+  height: 6.25rem;
+}
+
+.dilo-core-ondas-izq {
+  right: 50%;
+  margin-right: 3.05rem;
+  transform: translateY(-50%);
+}
+
+.dilo-core-ondas-der {
+  left: 50%;
+  margin-left: 3.05rem;
+  transform: translateY(-50%);
+}
+
+.dilo-core-barra {
+  display: block;
+  width: 3.25px;
+  height: calc(9px + var(--dilo-barra, 0.5) * 62px);
+  border-radius: 99px;
+  background: linear-gradient(180deg, #a5f3fc, #22d3ee 45%, #0891b2);
+  box-shadow: 0 0 10px rgb(34 211 238 / 0.4);
+  transform-origin: center;
+  animation: dilo-barra-idle 3.6s ease-in-out infinite;
+}
+
+.dilo-core-ondas-der .dilo-core-barra {
+  background: linear-gradient(180deg, #f3e8ff, #d8b4fe 45%, #a78bfa);
+  box-shadow: 0 0 10px rgb(167 139 250 / 0.4);
+}
+
+.dilo-core-mic {
+  position: relative;
+  z-index: 3;
+  display: grid;
+  place-items: center;
+  width: 5.85rem;
+  height: 5.85rem;
   border-radius: 50%;
-  border: 1px solid transparent;
-  opacity: 0;
-}
-
-.dilo-orbe[data-estado="escuchando"] {
-  animation: none;
-  transform: scale(1.06);
+  color: #fff;
+  background: linear-gradient(165deg, #7dd3fc 0%, #38bdf8 28%, #3b82f6 55%, #6366f1 78%, #7c3aed 100%);
   box-shadow:
-    inset 0 -30px 42px rgb(15 23 42 / 0.38),
-    inset 0 16px 24px rgb(255 255 255 / 0.38),
-    inset -12px -10px 28px rgb(30 64 175 / 0.28),
-    0 0 0 1px rgb(255 255 255 / 0.5),
-    0 0 0 10px rgb(37 99 235 / 0.1),
-    0 36px 72px -16px rgb(37 99 235 / 0.62);
+    inset 0 1.5px 0 rgb(255 255 255 / 0.5),
+    inset 0 -10px 18px rgb(67 56 202 / 0.28),
+    0 0 0 7px rgb(255 255 255 / 0.98),
+    0 0 0 8px rgb(191 219 254 / 0.55),
+    0 14px 32px -10px rgb(79 70 229 / 0.5);
+  animation: dilo-mic-espera 5.2s ease-in-out infinite;
 }
 
-.dilo-orbe[data-estado="escuchando"] .dilo-orbe-nucleo,
-.dilo-orbe[data-estado="hablando"] .dilo-orbe-nucleo {
-  animation: none;
+.dilo-core-mic-luz {
+  pointer-events: none;
+  position: absolute;
+  inset: 6%;
   border-radius: 50%;
-  transition: transform 70ms linear, opacity 70ms linear;
-  transform: scale(calc(1.04 + var(--dilo-nivel, 0) * 0.52));
-  opacity: calc(0.68 + var(--dilo-nivel, 0) * 0.32);
+  background: radial-gradient(circle at 36% 24%, rgb(255 255 255 / 0.62), transparent 52%);
 }
 
-.dilo-orbe[data-estado="escuchando"] .dilo-orbe-onda,
-.dilo-orbe[data-estado="hablando"] .dilo-orbe-onda {
-  opacity: calc(0.2 + var(--dilo-nivel, 0) * 0.7);
-  border-color: rgb(255 255 255 / 0.55);
-  transform: scale(calc(0.82 + var(--dilo-nivel, 0) * 0.42));
-  transition: transform 70ms linear, opacity 70ms linear;
+.dilo-core-mic-icono {
+  position: relative;
+  z-index: 1;
+  width: 1.85rem;
+  height: 1.85rem;
 }
 
-.dilo-orbe[data-estado="escuchando"] .dilo-orbe-sheen {
-  animation-duration: 10s;
+.dilo-core-eco {
+  pointer-events: none;
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  width: 5.85rem;
+  height: 5.85rem;
+  margin: auto;
+  border-radius: 50%;
+  border: 2px solid rgb(96 165 250 / 0.5);
+  animation: dilo-core-eco 0.55s ease-out forwards;
 }
 
-.dilo-anillo[data-estado="escuchando"] {
-  opacity: 1;
-  border-color: rgb(37 99 235 / 0.5);
-  animation: dilo-anillo-pulse 1.8s ease-out infinite;
+.dilo-core[data-estado="escuchando"] .dilo-core-halo {
+  animation: dilo-halo-vivo 1.5s ease-in-out infinite;
 }
 
-.dilo-anillo-b[data-estado="escuchando"] {
-  animation-delay: 0.45s;
+.dilo-core[data-estado="escuchando"] .dilo-core-anillos {
+  stroke: rgb(59 130 246 / 0.42);
 }
 
-.dilo-anillo-c[data-estado="escuchando"] {
-  animation-delay: 0.9s;
+.dilo-core[data-estado="escuchando"] .dilo-core-puntos {
+  color: rgb(56 189 248);
 }
 
-.dilo-halo[data-estado="escuchando"] {
-  background: radial-gradient(circle, rgb(37 99 235 / 0.32), transparent 70%);
-  animation: dilo-halo-vivo 1.4s ease-in-out infinite;
-}
-
-.dilo-orbe[data-estado="pensando"] {
+.dilo-core[data-estado="escuchando"] .dilo-core-mic {
   animation: none;
-  transform: scale(1);
+  transform: scale(calc(1.02 + var(--dilo-nivel, 0) * 0.06));
+  transition: transform 80ms linear;
 }
 
-.dilo-orbe[data-estado="pensando"] .dilo-orbe-nucleo {
-  animation: dilo-nucleo-pensar 1.8s ease-in-out infinite;
-}
-
-.dilo-orbe[data-estado="pensando"] .dilo-orbe-sheen {
-  animation-duration: 4s;
-}
-
-.dilo-orbe[data-estado="pensando"] .dilo-orbe-rim {
-  box-shadow: none;
-  background: conic-gradient(from 0deg, transparent 0 58%, rgb(255 255 255 / 0.95) 78%, transparent 100%);
-  mask: radial-gradient(farthest-side, transparent calc(100% - 3px), #000 calc(100% - 2px));
-  animation: dilo-aro-pensar 2.2s linear infinite;
-}
-
-.dilo-halo[data-estado="pensando"] {
-  background: radial-gradient(circle, rgb(14 165 233 / 0.28), transparent 70%);
-  animation: dilo-halo-vivo 1.4s ease-in-out infinite;
-}
-
-.dilo-orbe[data-estado="hablando"] {
+.dilo-core[data-estado="escuchando"] .dilo-core-barra,
+.dilo-core[data-estado="hablando"] .dilo-core-barra {
   animation: none;
-  transform: scale(1);
-  box-shadow:
-    inset 0 -30px 42px rgb(8 145 178 / 0.32),
-    inset 0 16px 24px rgb(255 255 255 / 0.4),
-    inset -12px -10px 28px rgb(14 116 144 / 0.28),
-    0 0 0 1px rgb(255 255 255 / 0.5),
-    0 0 0 10px rgb(34 211 238 / 0.12),
-    0 36px 72px -16px rgb(34 211 238 / 0.55);
+  height: calc(9px + var(--dilo-barra, 0.5) * (48px + var(--dilo-nivel, 0) * 56px));
+  transition: height 80ms linear;
 }
 
-.dilo-orbe[data-estado="hablando"] .dilo-orbe-sheen {
+.dilo-core[data-estado="pensando"] .dilo-core-puntos {
   animation-duration: 8s;
+  color: rgb(196 181 253);
 }
 
-.dilo-anillo[data-estado="hablando"] {
-  opacity: 1;
-  border-color: rgb(34 211 238 / 0.5);
-  animation: dilo-anillo-pulse 1.2s ease-out infinite;
+.dilo-core[data-estado="pensando"] .dilo-core-anillos {
+  animation: dilo-halo-espera 2.4s ease-in-out infinite;
 }
 
-.dilo-anillo-b[data-estado="hablando"] {
-  animation-delay: 0.3s;
+.dilo-core[data-estado="pensando"] .dilo-core-mic {
+  animation: dilo-mic-pensar 1.8s ease-in-out infinite;
 }
 
-.dilo-anillo-c[data-estado="hablando"] {
-  animation-delay: 0.6s;
-}
-
-.dilo-halo[data-estado="hablando"] {
-  background: radial-gradient(circle, rgb(34 211 238 / 0.32), transparent 70%);
+.dilo-core[data-estado="hablando"] .dilo-core-halo {
   animation: dilo-halo-vivo 1.2s ease-in-out infinite;
 }
 
-@keyframes dilo-orbe-eco {
+.dilo-core[data-estado="hablando"] .dilo-core-anillos {
+  stroke: rgb(167 139 250 / 0.4);
+}
+
+.dilo-core[data-estado="hablando"] .dilo-core-puntos {
+  color: rgb(216 180 254);
+}
+
+.dilo-core[data-estado="hablando"] .dilo-core-mic {
+  animation: none;
+  transform: scale(calc(1 + var(--dilo-nivel, 0) * 0.08));
+  transition: transform 80ms linear;
+}
+
+.dilo-core-mini {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 1.55rem;
+  height: 1.55rem;
+}
+
+.dilo-core-mini span {
+  width: 0.7rem;
+  height: 0.7rem;
+  border-radius: 50%;
+  background: linear-gradient(180deg, #60a5fa, #7c3aed);
+  box-shadow: 0 0 0 4px rgb(37 99 235 / 0.12);
+}
+
+.dilo-core-mini[data-activo="si"] span {
+  animation: dilo-mic-espera 2.4s ease-in-out infinite;
+}
+
+@keyframes dilo-core-eco {
   from {
-    transform: scale(0.72);
-    opacity: 0.75;
+    transform: scale(0.7);
+    opacity: 0.7;
   }
   to {
-    transform: scale(1.38);
+    transform: scale(1.55);
     opacity: 0;
   }
 }
 
-@keyframes dilo-orbe-pulso {
+@keyframes dilo-mic-espera {
   0%,
   100% {
     transform: scale(1);
   }
   50% {
-    transform: scale(1.02);
+    transform: scale(1.04);
   }
 }
 
-@keyframes dilo-nucleo-espera {
+@keyframes dilo-mic-pensar {
   0%,
   100% {
-    transform: scale(0.94);
+    transform: scale(0.96);
+    filter: brightness(1);
+  }
+  50% {
+    transform: scale(1.06);
+    filter: brightness(1.08);
+  }
+}
+
+@keyframes dilo-barra-idle {
+  0%,
+  100% {
+    transform: scaleY(0.84);
+    opacity: 0.78;
+  }
+  50% {
+    transform: scaleY(1.04);
+    opacity: 1;
+  }
+}
+
+@keyframes dilo-particula {
+  0%,
+  100% {
+    transform: translate(0, 0);
+    opacity: 0.25;
+  }
+  50% {
+    transform: translate(4px, -6px);
     opacity: 0.7;
-  }
-  50% {
-    transform: scale(1.06);
-    opacity: 1;
-  }
-}
-
-@keyframes dilo-nucleo-pensar {
-  0%,
-  100% {
-    transform: scale(0.9);
-    opacity: 0.55;
-  }
-  50% {
-    transform: scale(1.06);
-    opacity: 1;
-  }
-}
-
-@keyframes dilo-aro-pensar {
-  to {
-    transform: rotate(360deg);
-  }
-}
-
-@keyframes dilo-orbe-giro {
-  to {
-    transform: rotate(360deg);
   }
 }
 
@@ -576,8 +583,14 @@ html {
     opacity: 0.7;
   }
   100% {
-    transform: scale(1.45);
+    transform: scale(1.38);
     opacity: 0;
+  }
+}
+
+@keyframes dilo-anillo-giro {
+  to {
+    transform: rotate(360deg);
   }
 }
 
@@ -600,7 +613,7 @@ html {
     opacity: 0.65;
   }
   50% {
-    transform: scale(1.18);
+    transform: scale(1.16);
     opacity: 1;
   }
 }

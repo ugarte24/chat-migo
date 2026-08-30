@@ -45,7 +45,7 @@ export function DiloIcono({
   );
 }
 
-/** Icono de la web: DA en un cuadrado redondeado. */
+/** Icono de la web y de la app: el núcleo de voz de Dilo. */
 export function MarcaWebIcono({
   className,
   titulo = NOMBRE_WEB,
@@ -56,28 +56,11 @@ export function MarcaWebIcono({
   decorative?: boolean;
 }) {
   return (
-    <svg
-      viewBox="0 0 32 32"
-      className={cn("shrink-0", className)}
-      role={decorative ? "presentation" : "img"}
-      aria-hidden={decorative || undefined}
-      aria-label={decorative ? undefined : titulo}
-    >
-      {decorative ? null : <title>{titulo}</title>}
-      <rect width="32" height="32" rx="8" fill="#1e3a8a" />
-      <text
-        x="16"
-        y="21.4"
-        textAnchor="middle"
-        fill="#ffffff"
-        fontSize="12.5"
-        fontWeight="700"
-        fontFamily="ui-sans-serif, system-ui, Segoe UI, sans-serif"
-        letterSpacing="-0.4"
-      >
-        DA
-      </text>
-    </svg>
+    <img
+      src="/icono-dilo.png"
+      alt={decorative ? "" : titulo}
+      className={cn("shrink-0 rounded-[22%]", className)}
+    />
   );
 }
 

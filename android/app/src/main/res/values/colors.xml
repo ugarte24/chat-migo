@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <color name="dilo_cian">#0EA5E9</color>
-    <color name="dilo_fondo">#F8F9FA</color>
+    <color name="dilo_noche">#0B1D45</color>
+    <color name="dilo_fondo">#F8FAFC</color>
 </resources>

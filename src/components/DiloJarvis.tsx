@@ -1,8 +1,22 @@
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { Link, useNavigate } from "@tanstack/react-router";
-import { LogOut, MessageSquare, MoreHorizontal, Settings, Shield, Volume2, VolumeX } from "lucide-react";
+import {
+  Bell,
+  Brain,
+  CalendarDays,
+  CheckSquare,
+  ChevronRight,
+  LogOut,
+  MessageSquare,
+  MoreVertical,
+  Settings,
+  Shield,
+  Volume2,
+  VolumeX,
+  Zap,
+} from "lucide-react";
 import { AvisoActualizacionApk } from "@/components/AvisoActualizacionApk";
-import { DiloOrbe, type EstadoOrbe } from "@/components/DiloOrbe";
+import { DiloNucleoMini, DiloOrbe, type EstadoOrbe } from "@/components/DiloOrbe";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -16,6 +30,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useAuth } from "@/lib/auth";
+import { fechaCorta, hoyISO } from "@/lib/datos";
 import { useAsistente } from "@/lib/store";
 import { esCascaraAndroid, versionCascaraAndroid } from "@/lib/nativo";
 import { nombreDePila } from "@/lib/utils";
@@ -31,12 +46,18 @@ import {
   esperaFinHabla,
 } from "@/lib/voz";
 
-const ESTADO_TEXTO: Record<EstadoOrbe, string> = {
-  espera: "Toca para hablar",
-  escuchando: "Te escucho",
-  pensando: "Un momento",
-  hablando: "Toca para interrumpir",
+const ESTADO_UI: Record<EstadoOrbe, { titulo: string; sub: string }> = {
+  espera: { titulo: "Toca para hablar", sub: "Estoy listo para escucharte" },
+  escuchando: { titulo: "Te escucho", sub: "Decime qué necesitás" },
+  pensando: { titulo: "Un momento...", sub: "Estoy pensando" },
+  hablando: { titulo: "Dilo está hablando", sub: "Toca para interrumpir" },
 };
+
+const ATAJOS = [
+  { to: "/tareas", etiqueta: "Tareas", Icono: CheckSquare, caja: "bg-[#ECFDF5] text-[#059669]" },
+  { to: "/recordatorios", etiqueta: "Recordatorios", Icono: Bell, caja: "bg-[#EFF6FF] text-[#2563EB]" },
+  { to: "/eventos", etiqueta: "Eventos", Icono: CalendarDays, caja: "bg-[#F5F3FF] text-[#7C3AED]" },
+] as const;
 
 const GRUPOS_VOZ = [
   { id: "hombres" as const, titulo: "Hombres" },
@@ -44,9 +65,29 @@ const GRUPOS_VOZ = [
   { id: "neutra" as const, titulo: "Neutra" },
 ];
 
+function mananaISO() {
+  const d = new Date();
+  d.setDate(d.getDate() + 1);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
+function etiquetaCuando(fecha: string, hora: string) {
+  const hoy = hoyISO();
+  const manana = mananaISO();
+  const dia = fecha === hoy ? "Hoy" : fecha === manana ? "Mañana" : fechaCorta(fecha);
+  return `${dia}, ${hora}`;
+}
+
 export function Dilo() {
-  const { mensajes, enviarMensaje, configuracion, actualizarConfiguracion, pensando } =
-    useAsistente();
+  const {
+    mensajes,
+    enviarMensaje,
+    configuracion,
+    actualizarConfiguracion,
+    pensando,
+    recordatorios,
+    eventos,
+  } = useAsistente();
   const { perfil, cerrarSesion } = useAuth();
   const navigate = useNavigate();
   const [grabando, setGrabando] = useState(false);
@@ -77,6 +118,33 @@ export function Dilo() {
     : (visibles.find((m) => m.id === "msg-welcome")?.texto ??
       "Hola. Estoy aquí. Cuéntame qué tienes entre manos.");
   const entradaDichaRef = useRef(false);
+  const hayChat = visibles.some((m) => m.autor === "usuario");
+
+  const recientes = useMemo(() => {
+    const recs = recordatorios
+      .filter((r) => r.activo && r.estado === "pendiente")
+      .slice(0, 2)
+      .map((r) => ({
+        id: r.id,
+        tipo: "recordatorio" as const,
+        titulo: r.actividad,
+        cuando: etiquetaCuando(r.fecha, r.hora),
+        estado: "Activa",
+        to: "/recordatorios" as const,
+      }));
+    const evs = eventos
+      .filter((e) => e.estado === "pendiente")
+      .slice(0, 2)
+      .map((e) => ({
+        id: e.id,
+        tipo: "evento" as const,
+        titulo: e.titulo,
+        cuando: etiquetaCuando(e.fecha, e.hora),
+        estado: "Confirmado",
+        to: "/eventos" as const,
+      }));
+    return [...recs, ...evs].slice(0, 2);
+  }, [recordatorios, eventos]);
 
   useEffect(() => {
     grabandoRef.current = grabando;
@@ -145,7 +213,7 @@ export function Dilo() {
         void empezarEscuchaRef.current();
       }
     } catch {
-      setAviso("Necesito permiso del micrófono. Ábrelo en el navegador y pulsa el orbe.");
+      setAviso("Necesito permiso del micrófono. Ábrelo y pulsa el micrófono.");
       sesionRef.current = false;
       setEnSesion(false);
     } finally {
@@ -181,7 +249,7 @@ export function Dilo() {
       grabandoRef.current = true;
       setGrabando(true);
     } catch {
-      setAviso("Necesito permiso del micrófono. Ábrelo en el navegador y pulsa otra vez.");
+      setAviso("Necesito permiso del micrófono. Ábrelo y pulsa otra vez.");
       sesionRef.current = false;
       setEnSesion(false);
     } finally {
@@ -253,27 +321,15 @@ export function Dilo() {
     await empezarEscucha();
   };
 
-  const colorEstado =
-    estado === "escuchando"
-      ? "text-[#2563eb]"
-      : estado === "pensando"
-        ? "text-[#f59e0b]"
-        : estado === "hablando"
-          ? "text-[#0891b2]"
-          : "text-[#5f6368]";
+  const ui = ESTADO_UI[estado];
+  const tituloEstado = aviso ?? (!hayMic ? "Este navegador no puede usar el micrófono." : ui.titulo);
+  const subEstado = aviso || !hayMic ? "" : ui.sub;
 
   return (
-    <div className="font-dilo relative flex h-svh min-h-0 flex-col overflow-hidden bg-[#f8f9fa] text-[#202124]">
-      <header className="relative z-10 flex h-16 shrink-0 items-center gap-3 px-4 sm:px-5">
-        <span className="text-[17px] font-medium tracking-tight text-[#202124]">
-          Dilo
-          {enAndroid && versionCascaraAndroid() ? (
-            <span className="ml-2 text-[12px] font-normal text-[#80868b]">
-              {versionCascaraAndroid()}
-            </span>
-          ) : null}
-        </span>
-        <div className="ml-auto flex items-center gap-0.5 rounded-full bg-white/70 p-0.5 shadow-[0_1px_2px_rgb(60_64_67/0.12)] ring-1 ring-[#dadce0]/70 backdrop-blur-md">
+    <div className="relative flex h-svh min-h-0 flex-col overflow-hidden bg-[#F8FAFC] text-[#111827]">
+      <header className="relative z-10 flex shrink-0 items-center justify-between px-5 pt-4 pb-2">
+        <p className="min-w-0 text-[22px] font-semibold tracking-tight">Dilo</p>
+        <div className="flex items-center gap-2">
           <IconoBarra
             etiqueta={configuracion.preferenciaVoz ? "Silenciar a Dilo" : "Dilo habla"}
             onClick={() => {
@@ -282,21 +338,15 @@ export function Dilo() {
             }}
           >
             {configuracion.preferenciaVoz ? (
-              <Volume2 className="size-5" />
+              <Volume2 className="size-[18px]" />
             ) : (
-              <VolumeX className="size-5" />
+              <VolumeX className="size-[18px]" />
             )}
           </IconoBarra>
-          <Link
-            to="/chat"
-            aria-label="Conversación"
-            className="inline-flex size-10 items-center justify-center rounded-full text-[#5f6368] hover:bg-[#f1f3f4]"
-          >
-            <MessageSquare className="size-5" />
-          </Link>
           <MenuMas
             vozId={configuracion.vozId}
             esAdmin={perfil?.rol === "administrador"}
+            versionApp={enAndroid ? versionCascaraAndroid() : null}
             onVoz={(vozId) => actualizarConfiguracion({ vozId })}
             onSalir={() => {
               silenciar();
@@ -308,18 +358,122 @@ export function Dilo() {
 
       <AvisoActualizacionApk compacto />
 
-      <div className="relative z-10 flex min-h-0 flex-1 flex-col items-center justify-center px-6 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
-        <DiloOrbe estado={estado} onActivar={() => void pulsarOrbe()} />
-        <p
-          key={aviso ?? `estado-${estado}`}
-          className={`mt-7 max-w-sm text-center text-[16px] font-medium ${
-            aviso ? "text-[#2563eb]" : colorEstado
-          }`}
-          style={{ animation: "dilo-texto-entra 0.35s ease-out" }}
-        >
-          {aviso ?? (!hayMic ? "Este navegador no puede usar el micrófono." : ESTADO_TEXTO[estado])}
-        </p>
+      <div className="flex min-h-0 flex-1 flex-col px-5">
+        <section className="shrink-0 rounded-[1.35rem] bg-white/80 px-4 py-3.5 shadow-[0_1px_3px_rgb(15_23_42/0.06)] ring-1 ring-white/80 backdrop-blur-md">
+          <nav className="flex justify-around gap-2" aria-label="Accesos rápidos">
+            {ATAJOS.map((a) => (
+              <Link
+                key={a.to}
+                to={a.to}
+                className="flex min-w-0 flex-1 flex-col items-center gap-1.5"
+              >
+                <span className={`inline-flex size-11 items-center justify-center rounded-2xl ${a.caja}`}>
+                  <a.Icono className="size-[18px]" strokeWidth={2.1} />
+                </span>
+                <span className="max-w-full text-center text-[12px] leading-[1.15] text-[#475569]">
+                  {a.etiqueta}
+                </span>
+              </Link>
+            ))}
+          </nav>
+        </section>
+
+        <div className="flex min-h-0 flex-1 flex-col items-center justify-center overflow-visible py-1">
+          <DiloOrbe estado={estado} onActivar={() => void pulsarOrbe()} />
+          <p
+            key={aviso ?? `estado-${estado}`}
+            className="mt-2 text-center text-[17px] font-semibold tracking-tight text-[#111827]"
+            style={{ animation: "dilo-texto-entra 0.35s ease-out" }}
+          >
+            {tituloEstado}
+          </p>
+          {subEstado ? (
+            <p className="mt-0.5 text-center text-[13px] text-[#64748B]">{subEstado}</p>
+          ) : null}
+        </div>
+
+        {recientes.length > 0 ? (
+          <section className="mb-2 shrink-0">
+            <div className="mb-2 flex items-center justify-between">
+              <h2 className="text-[15px] font-semibold">Próximo</h2>
+              <Link to="/historial" className="inline-flex items-center text-[13px] font-medium text-[#2563EB]">
+                Ver todo
+                <ChevronRight className="size-3.5" />
+              </Link>
+            </div>
+            <div className="overflow-hidden rounded-[1.2rem] bg-white/80 shadow-[0_1px_3px_rgb(15_23_42/0.06)] ring-1 ring-white/80">
+              {recientes.map((item, i) => (
+                <Link
+                  key={item.id}
+                  to={item.to}
+                  className={`flex items-center gap-3 px-3.5 py-3 ${i > 0 ? "border-t border-[#F1F5F9]" : ""}`}
+                >
+                  <span
+                    className={`inline-flex size-9 shrink-0 items-center justify-center rounded-xl ${
+                      item.tipo === "recordatorio"
+                        ? "bg-[#EFF6FF] text-[#2563EB]"
+                        : "bg-[#F5F3FF] text-[#7C3AED]"
+                    }`}
+                  >
+                    {item.tipo === "recordatorio" ? (
+                      <Bell className="size-4" />
+                    ) : (
+                      <CalendarDays className="size-4" />
+                    )}
+                  </span>
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate text-[13px] font-medium">
+                      {item.tipo === "recordatorio" ? "Recordatorio: " : "Evento: "}
+                      {item.titulo}
+                    </span>
+                    <span className="block text-[12px] text-[#64748B]">{item.cuando}</span>
+                  </span>
+                  <span
+                    className={`shrink-0 text-[11px] font-medium ${
+                      item.tipo === "recordatorio" ? "text-[#2563EB]" : "text-[#16A34A]"
+                    }`}
+                  >
+                    {item.estado}
+                  </span>
+                </Link>
+              ))}
+            </div>
+          </section>
+        ) : null}
       </div>
+
+      <nav
+        className="relative z-10 shrink-0 border-t border-[#E2E8F0]/80 bg-white/90 pb-[max(0.4rem,env(safe-area-inset-bottom))] shadow-[0_-4px_16px_rgb(15_23_42/0.04)] backdrop-blur-md"
+        aria-label="Principal"
+      >
+        <div className="grid grid-cols-3 px-2 pt-1.5">
+          <span className="flex flex-col items-center gap-0.5 py-1.5 text-[#2563EB]">
+            <DiloNucleoMini activo />
+            <span className="text-[11px] font-medium">Asistente</span>
+          </span>
+          <Link
+            to="/chat"
+            className="relative flex flex-col items-center gap-0.5 py-1.5 text-[#64748B]"
+            aria-label="Chat"
+          >
+            <span className="relative">
+              <MessageSquare className="size-5" />
+              {hayChat ? (
+                <span className="absolute -top-0.5 -right-0.5 size-1.5 rounded-full bg-[#2563EB]" aria-hidden />
+              ) : null}
+            </span>
+            <span className="text-[11px]">Chat</span>
+          </Link>
+          <Link
+            to="/configuracion"
+            className="flex flex-col items-center gap-0.5 py-1.5 text-[#64748B]"
+            aria-label="Ajustes"
+          >
+            <Settings className="size-5" />
+            <span className="text-[11px]">Ajustes</span>
+          </Link>
+        </div>
+      </nav>
     </div>
   );
 }
@@ -340,7 +494,7 @@ function IconoBarra({
       type="button"
       aria-label={etiqueta}
       onClick={onClick}
-      className="inline-flex size-10 items-center justify-center rounded-full text-[#5f6368] hover:bg-[#f1f3f4]"
+      className="inline-flex size-10 items-center justify-center rounded-full bg-white text-[#64748B] shadow-[0_1px_3px_rgb(15_23_42/0.08)] ring-1 ring-[#E2E8F0]/80"
     >
       {children}
     </button>
@@ -350,11 +504,13 @@ function IconoBarra({
 function MenuMas({
   vozId,
   esAdmin,
+  versionApp,
   onVoz,
   onSalir,
 }: {
   vozId: string;
   esAdmin?: boolean;
+  versionApp?: string | null;
   onVoz: (vozId: string) => void;
   onSalir: () => void;
 }) {
@@ -366,16 +522,27 @@ function MenuMas({
         <button
           type="button"
           aria-label="Más opciones"
-          className="inline-flex size-10 items-center justify-center rounded-full text-[#5f6368] hover:bg-[#f1f3f4]"
+          className="inline-flex size-10 items-center justify-center rounded-full bg-white text-[#64748B] shadow-[0_1px_3px_rgb(15_23_42/0.08)] ring-1 ring-[#E2E8F0]/80"
         >
-          <MoreHorizontal className="size-5" />
+          <MoreVertical className="size-[18px]" />
         </button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-56">
+        <DropdownMenuItem asChild>
+          <Link to="/memoria">
+            <Brain className="size-4" />
+            Memoria
+          </Link>
+        </DropdownMenuItem>
+        <DropdownMenuItem asChild>
+          <Link to="/automatizaciones">
+            <Zap className="size-4" />
+            Automatizaciones
+          </Link>
+        </DropdownMenuItem>
+        <DropdownMenuSeparator />
         <DropdownMenuSub>
-          <DropdownMenuSubTrigger>
-            Voz: {actual.nombre}
-          </DropdownMenuSubTrigger>
+          <DropdownMenuSubTrigger>Voz: {actual.nombre}</DropdownMenuSubTrigger>
           <DropdownMenuSubContent className="max-h-72 w-56 overflow-y-auto">
             {GRUPOS_VOZ.map((g) => (
               <DropdownMenuGroup key={g.id}>
@@ -383,10 +550,7 @@ function MenuMas({
                   {g.titulo}
                 </DropdownMenuLabel>
                 {VOCES_DILO.filter((v) => v.grupo === g.id).map((v) => (
-                  <DropdownMenuItem
-                    key={v.id}
-                    onSelect={() => onVoz(v.id)}
-                  >
+                  <DropdownMenuItem key={v.id} onSelect={() => onVoz(v.id)}>
                     {v.nombre}
                     <span className="ml-auto text-[11px] text-muted-foreground">
                       {v.id === actual.id ? "actual" : v.detalle}
@@ -417,6 +581,11 @@ function MenuMas({
           <LogOut className="size-4" />
           Cerrar sesión
         </DropdownMenuItem>
+        {versionApp ? (
+          <DropdownMenuLabel className="text-[11px] font-normal text-muted-foreground">
+            App {versionApp}
+          </DropdownMenuLabel>
+        ) : null}
       </DropdownMenuContent>
     </DropdownMenu>
   );

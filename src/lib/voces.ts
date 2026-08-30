@@ -7,10 +7,13 @@ export interface VozDilo {
   grupo: "hombres" | "mujeres" | "neutra";
 }
 
-export const VOZ_DEFECTO_ID = "TX3LPaxmHKxFdv7VOQHJ"; // Liam
+/** Sarah: cercana y natural en español. Liam era el default anterior (más “inglés / sintético”). */
+const VOZ_DEFECTO_ANTERIOR = "TX3LPaxmHKxFdv7VOQHJ";
+export const VOZ_DEFECTO_ID = "EXAVITQu4vr4xnSDxMaL";
 
 export const VOCES_DILO: readonly VozDilo[] = [
-  { id: VOZ_DEFECTO_ID, nombre: "Liam", detalle: "Joven, enérgico", grupo: "hombres" },
+  { id: VOZ_DEFECTO_ID, nombre: "Sarah", detalle: "Suave, natural", grupo: "mujeres" },
+  { id: VOZ_DEFECTO_ANTERIOR, nombre: "Liam", detalle: "Joven, enérgico", grupo: "hombres" },
   { id: "IKne3meq5aSn9XLyUdCD", nombre: "Charlie", detalle: "Grave, seguro", grupo: "hombres" },
   { id: "bIHbv24MWmeRgasZH58o", nombre: "Will", detalle: "Relajado", grupo: "hombres" },
   { id: "iP95p4xoKVk53GoZ742B", nombre: "Chris", detalle: "Cercano", grupo: "hombres" },
@@ -24,7 +27,6 @@ export const VOCES_DILO: readonly VozDilo[] = [
   { id: "N2lVS1w4EtoT3dr4eOWO", nombre: "Callum", detalle: "Ronco, personaje", grupo: "hombres" },
   { id: "SOYHLrjzK2X1ezoPC6cr", nombre: "Harry", detalle: "Intenso", grupo: "hombres" },
   { id: "FGY2WhTYpPnrIDTdsKH5", nombre: "Laura", detalle: "Joven, enérgica", grupo: "mujeres" },
-  { id: "EXAVITQu4vr4xnSDxMaL", nombre: "Sarah", detalle: "Suave, profesional", grupo: "mujeres" },
   { id: "cgSgspJ2msm6clMCkdW9", nombre: "Jessica", detalle: "Alegre, cercana", grupo: "mujeres" },
   { id: "Xb7hH8MSUJpSbSDYk0k2", nombre: "Alice", detalle: "Clara, británica", grupo: "mujeres" },
   { id: "XrExE9yKIg1WjnnlVkGX", nombre: "Matilda", detalle: "Cálida", grupo: "mujeres" },
@@ -44,5 +46,6 @@ export function vozPorId(id: string | null | undefined): VozDilo {
 }
 
 export function vozResuelta(id: string | null | undefined): string {
-  return esVozGratis(id) ? id! : VOZ_DEFECTO_ID;
+  if (!id || id === VOZ_DEFECTO_ANTERIOR || !IDS.has(id)) return VOZ_DEFECTO_ID;
+  return id;
 }

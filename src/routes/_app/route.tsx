@@ -39,17 +39,27 @@ function AppLayout() {
     return <Outlet />;
   }
 
+  const titulos: Record<string, string> = {
+    "/tareas": "Tareas",
+    "/recordatorios": "Recordatorios",
+    "/eventos": "Eventos",
+    "/memoria": "Memoria",
+    "/automatizaciones": "Automatizaciones",
+    "/historial": "Historial",
+    "/configuracion": "Configuración",
+  };
+
   return (
-    <div className="font-dilo flex h-svh min-h-0 flex-col bg-[#f8f9fa]">
-      <header className="flex h-14 shrink-0 items-center gap-3 border-b border-[#dadce0] bg-white px-4">
+    <div className="font-dilo flex h-svh min-h-0 flex-col bg-[#F8FAFC]">
+      <header className="flex h-14 shrink-0 items-center gap-3 border-b border-[#E2E8F0] bg-white px-4">
         <Link
           to="/panel"
-          className="inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-sm text-[#2563eb] hover:bg-[#eff6ff]"
+          className="inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-sm text-[#2563EB] hover:bg-[#EFF6FF]"
         >
           <ArrowLeft className="size-4" />
           Dilo
         </Link>
-        <p className="min-w-0 text-[16px] text-[#202124]">Configuración</p>
+        <p className="min-w-0 text-[16px] text-[#111827]">{titulos[pathname] ?? "Dilo"}</p>
       </header>
       <main className="flex-1 overflow-auto p-4 md:p-8">
         <Outlet />
